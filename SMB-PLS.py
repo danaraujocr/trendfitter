@@ -1,4 +1,4 @@
-from numpy import array, isnan, nansum, nan_to_num, multiply, sum, sqrt, append, zeros
+from numpy import array, isnan, nansum, nan_to_num, multiply, sum, sqrt, append, zeros, place, nan
 from numpy.linalg import norm
 from sklearn.model_selection import KFold
 import pandas as pd
@@ -93,31 +93,37 @@ class PLS_SMB:
                     loop_count += 1
                     
                     """---------------- If there's missing data -----------------"""
-                    if number1 in is_incomplete_X:#(number1 in is_incomplete_X) : #To DO
-                        block_weights = nansum((block.T * y_scores1).T, axis = 0)/nansum(((~isnan(X).T*y_scores1) ** 2).T, axis = 0)
+                    if number1 in is_incomplete_X:
+                        block_weights = array( nansum((block * y_scores1), axis = 0), ndmin =2).T/nansum( ( array(~isnan( sum( block, axis = 1 ) ), ndmin =2 ).T * y_scores1 ) ** 2, axis = 0 )
+                        block_weights_inner[number1] = block_weights/norm(block_weights)
+                        T_scores = array( nansum( block.T * block_weights_inner[number1], axis = 0 ), ndmin = 2).T
                         """---------------- If there isn't missing data -----------------"""
                     else : 
                         block_weights = block.T.dot(y_scores1)/(y_scores1.T.dot(y_scores1)) # calculating Xb block weights (as step 2.1 in L-G's 2018 paper)
-                        #block_weights = block_weights.rename(columns={'y' : 'LV'+str(latent_variable)+' B'+str(number1)})
+                        block_weights_inner[number1] = block_weights/norm(block_weights)
+                        T_scores = block.dot(block_weights_inner[number1])
                         """---------------- Independent of missing data -----------------"""
-                    block_weights_inner[number1] = block_weights/norm(block_weights) # normalizing block weight vectors (as step 2.2 in L-G's 2018 paper)
-                    T_scores = block.dot(block_weights_inner[number1]) # calculating the block scores (as step 2.3 in L-G's 2018 paper)
+                     # normalizing block weight vectors (as step 2.2 in L-G's 2018 paper)
+                     # calculating the block scores (as step 2.3 in L-G's 2018 paper)
                     
                     for number2, block2 in zip(range(number1+1, len(X)), X[number1+1:]):
                         X_corr_coeffs = (T_scores/(T_scores.T.dot(T_scores))).dot(T_scores.T)
                         """---------------- If there's missing data -----------------"""
                         if number2 in is_incomplete_X: #To DO    
-                            X_corr = multiply(X_corr_coeffs.dot(nan_to_num(block2)), ~isnan(block2))
-                            block_weights_inner[number2] = nansum((X_corr.T * y_scores1).T, axis = 0)/nansum(((~isnan(X).T * y_scores1) ** 2).T, axis = 0)
-                            
+                            X_corr = X_corr_coeffs.dot(nan_to_num(block2)) # Attention on this part
+                            place( X_corr, isnan(block2), nan )
+                            block_weights_inner[number2] = array( nansum((X_corr * y_scores1), axis = 0), ndmin =2).T/nansum( ( array(~isnan( sum( block2, axis = 1 ) ), ndmin =2 ).T * y_scores1 ) ** 2, axis = 0 )
+                            block_weights_inner[number2] = block_weights_inner[number2]/norm(block_weights_inner[number2]) #step 2.6
+                            block2_x_scores =  array( nansum( X_corr * block_weights_inner[number2].T, axis = 1), ndmin = 2).T # step 2.7
                             """---------------- If there isn't missing data -----------------"""
                         else:    
                             X_corr = X_corr_coeffs.dot(block2) # finishing step 2.4 for no missing data
                             block_weights_inner[number2] = X_corr.T.dot(y_scores1)/(y_scores1.T.dot(y_scores1)) # step 2.5
                             #block_weights_inner[number2] = block_weights_inner[number2].rename(columns={'y':'LV'+str(latent_variable)+' B'+str(number2)+ 'Corr'+str(number1)})
+                            block_weights_inner[number2] = block_weights_inner[number2]/norm(block_weights_inner[number2]) #step 2.6
+                            block2_x_scores =  X_corr.dot(block_weights_inner[number2]) # step 2.7
+                            
                             """---------------- Independent of missing data -----------------"""    
-                        block_weights_inner[number2] = block_weights_inner[number2]/norm(block_weights_inner[number2]) #step 2.6
-                        block2_x_scores =  X_corr.dot(block_weights_inner[number2]) # step 2.7
                         T_scores = append(T_scores, block2_x_scores, axis=1) # step 2.8 done step by step during the loop
                      
                     super_weights = T_scores.T.dot(y_scores1)/(y_scores1.T.dot(y_scores1)) #step 2.9
@@ -137,12 +143,15 @@ class PLS_SMB:
                     super_scores_old = super_scores
                     y_scores1 = y_scores 
                 block_p_loadings_inner={}
-                for number2, block2 in zip(range(number1, len(X)), X[number1:]): # Step 3 
-                    block_p_loadings_inner[number2] = block2.T.dot(super_scores)/(super_scores.T.dot(super_scores)) #Step 3.1
-                    #if number1!=number2 :
-                        #block_p_loadings_inner[number2] = block_p_loadings_inner[number2].rename(columns={'LV'+str(latent_variable)+' B'+str(number1):'LV'+str(latent_variable)+' B'+str(number2)+ 'Corr'+str(number1)})
+                for number2, block2 in zip(range(number1, len(X)), X[number1:]): # Step 3
+                    
+                    if number2 in is_incomplete_X:
+                        block_p_loadings_inner[number2] = array( nansum( block2 * super_scores, axis = 0 )/(super_scores.T.dot(super_scores)), ndmin = 2 ).T #Step 3.1
+                        
+                    else:
+                        block_p_loadings_inner[number2] = block2.T.dot(super_scores)/(super_scores.T.dot(super_scores)) #Step 3.1
+                    
                     block2 -= super_scores.dot(block_p_loadings_inner[number2].T) # Step 3.2
-                #X[number1]=block-super_scores.vales.dot(block_p_loadings_inner[number2].T)
                 Y_pred = super_scores.dot(c_loadings.T)
                 Y -= Y_pred#Step 4
                 
@@ -233,8 +242,8 @@ class PLS_SMB:
 
 #Test Section
         
-data = pd.read_csv('toy_example csv.csv', delimiter=';', index_col=0)
-#data = pd.read_csv('toy_example csv missing.csv', delimiter=';', index_col=0)
+#data = pd.read_csv('toy_example csv.csv', delimiter=';', index_col=0)
+data = pd.read_csv('toy_example csv missing.csv', delimiter=';', index_col=0)
 #data = (data - data.mean())/data.std()
 
 X=[data[['Var1','Var2','Var3']]/sqrt(3),data[['Var4','Var5']]/sqrt(2)]
