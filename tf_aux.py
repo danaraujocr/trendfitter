@@ -95,6 +95,8 @@ def scores_with_missing_values( omega, loadings, X_matrix, LVs = None, method = 
         B_1 = omega[ :LVs, :LVs ].dot( loadings[ :LVs ] )
         B_2 = pinv( loadings.T.dot( omega ).dot( loadings ) )
         B = B_1.dot( B_2 )
+    
+    else: raise Exception('Method {} not implemented'.format(method))
 
     scores = B.dot( X_matrix.T )
         
