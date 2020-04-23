@@ -58,7 +58,7 @@ def subinverse( main_inverse_term, desired_variables ):
     return inverse_matrix
 """
 
-def scores_with_missing_values( omega, loadings, X_matrix, method = 'TSR', inverse_method = None, inverse_term = None ):
+def scores_with_missing_values( omega, loadings, X_matrix, LVs = None, method = 'TSR', inverse_method = None, inverse_term = None ):
     """
 
     function to estimate missing values using different techniques. 
@@ -82,16 +82,20 @@ def scores_with_missing_values( omega, loadings, X_matrix, method = 'TSR', inver
     inverse_term:
 
     """
+    if LVs == None : LVs = omega.shape[0]
 
 
     if method == 'TSR' : #estimate using the 'TSR' method
         
-        B = omega.dot( loadings ).dot( loadings.T ).dot( pinv( loadings.dot( loadings.T ).dot( omega ).dot( loadings ).dot( loadings.T ) ) ).dot( loadings )  # OMEGA.P*'.P*.(P*'.P*.OMEGA.P.P*')^-1         
-        scores = B.dot( X_matrix.T )
-        
+        B_1 = omega[ :LVs, :LVs ].dot( loadings[ :LVs ] ).dot( loadings[ :LVs ].T ) # OMEGA.P*'.P*
+        B_2 = pinv( loadings[ :LVs ].dot( loadings.T ).dot( omega ).dot( loadings ).dot( loadings[ :LVs ].T ) ) # (P*'.P*.OMEGA.P'.P*)^-1 
+        B = B_1.dot( B_2 ).dot( loadings[ :LVs ] )  # OMEGA.P*'.P*.(P*'.P*.OMEGA.P.P*')^-1.P*'         
+
     elif method == 'CMR' : # estimate using the 'CMR' method
-        
-        B = omega.dot( loadings ).dot( pinv( loadings.T.dot( omega ).dot( loadings ) ) )
-        scores = B.dot( X_matrix )
+        B_1 = omega[ :LVs, :LVs ].dot( loadings[ :LVs ] )
+        B_2 = pinv( loadings.T.dot( omega ).dot( loadings ) )
+        B = B_1.dot( B_2 )
+
+    scores = B.dot( X_matrix.T )
         
     return scores.T
