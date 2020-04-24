@@ -1,4 +1,4 @@
-from numpy import min, sum, mean, std, var, insert, array, multiply, where, zeros, append, isnan, nan_to_num, nansum, nanvar, nanmean, unique
+from numpy import min, sum, mean, std, var, insert, array, multiply, where, zeros, append, isnan, nan_to_num, nansum, nanvar, nanmean, unique, ix_, nonzero
 from numpy.linalg import norm
 from pandas import DataFrame
 from sklearn.model_selection import KFold
@@ -169,7 +169,7 @@ class PCA:
                 
                 else :
                     
-                    result[ rows_indexes, : ] = scores_with_missing_values( self.omega, self.loadings[ : , ~row_mask ], X[ rows_indexes, ~row_mask], 
+                    result[ rows_indexes, : ] = scores_with_missing_values( self.omega, self.loadings[ : , ~row_mask ], X[ rows_indexes[ 0 ][ :, None ], ~row_mask ], 
                                                                             LVs = principal_components, method = self.missing_values_method )
                  
                     
