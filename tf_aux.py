@@ -1,4 +1,4 @@
-from numpy import zeros
+from numpy import zeros, array
 from numpy.linalg import det, pinv
 from math import floor
 from itertools import product
@@ -98,6 +98,6 @@ def scores_with_missing_values( omega, loadings, X_matrix, LVs = None, method = 
     
     else: raise Exception('Method {} not implemented'.format(method))
 
-    scores = B.dot( X_matrix.T )
+    scores = B.dot( X_matrix.T ).reshape( X_matrix.shape[ 0 ], -1 )
         
-    return scores.T
+    return scores
