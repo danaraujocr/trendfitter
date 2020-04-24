@@ -82,9 +82,9 @@ class PCA:
                 
                 else:
                     
-                    loadings_vec = array( scores_vec.T.dot( MatrixX2 ) / ( scores_vec.T.dot( scores_vec ) ), ndmin = 2 ) #loadings = scores'*data/scores'*scores        
+                    loadings_vec = array( scores_vec.T @ MatrixX2 / ( scores_vec.T @ scores_vec  ), ndmin = 2 ) #loadings = scores'*data/scores'*scores        
                     loadings_vec = loadings_vec / norm( loadings_vec ) #normalization of loading vector
-                    new_scores_vec = MatrixX2.dot(loadings_vec.T) #scores calculation
+                    new_scores_vec = MatrixX2 @ loadings_vec.T #scores calculation
                 
                 conv = sum( ( scores_vec - new_scores_vec ) ** 2 )  #scores comparation in between loops to assess convergency
                 scores_vec = new_scores_vec # old t becomes new t
@@ -123,10 +123,10 @@ class PCA:
                 self.loadings = insert( self.loadings, self.loadings.shape[0], loadings_vec, axis = 0 )
                 final_scores = insert( final_scores, final_scores.shape[1], scores_vec.T, axis = 1 )
 
-            self.omega = final_scores.T.dot(final_scores) # calculation of the covariance matrix
+            self.omega = final_scores.T @ final_scores # calculation of the covariance matrix
              
             #prediction of this model
-            MatrixXModel = final_scores.dot( self.loadings )
+            MatrixXModel = final_scores @ self.loadings 
         self.principal_components = self.loadings.shape[ 0 ]        
 
         if not int_call : 
@@ -139,7 +139,7 @@ class PCA:
         if isinstance( X, DataFrame ) : X = X.to_numpy()
         if principal_components == None : principal_components = self.principal_components
         
-        preds = ( self.transform( X, principal_components = principal_components ) ).dot( self.loadings[ :principal_components, : ] )
+        preds = ( self.transform( X, principal_components = principal_components ) ) @ self.loadings[ :principal_components, : ] 
         
         return preds
     
@@ -165,7 +165,7 @@ class PCA:
                 
                 if sum( row_mask ) == 0 : 
 
-                    result[ rows_indexes, : ] = X[ rows_indexes, :].dot( self.loadings[ :principal_components, : ].T )
+                    result[ rows_indexes, : ] = X[ rows_indexes, :] @ self.loadings[ :principal_components, : ].T 
                 
                 else :
                     
@@ -173,7 +173,7 @@ class PCA:
                                                                             LVs = principal_components, method = self.missing_values_method )
                  
                     
-        else : result = X.dot( self.loadings[ :principal_components, : ].T )
+        else : result = X @ self.loadings[ :principal_components, : ].T 
         
         return result
     
@@ -202,14 +202,16 @@ class PCA:
               
         if isinstance( X, DataFrame ) : X = X.to_numpy()
 
-        SSX = array( sum( ( nan_to_num(X) - nanmean( X, axis = 0 ) ) ** 2 ) )    
+        SSX = array( sum( ( nan_to_num(X) - nanmean( X, axis = 0 ) ) ** 2 ) )   
+
         for i in range( 1, principal_components + 1 ) :
+
             pred = self.predict( X, principal_components = i )
             res = nan_to_num(X) - pred
             SSX = append( SSX, ( res - res.mean( axis = 0 ) ** 2 ).sum() )
             
         SSXdiff = SSX[ :-1 ] - array( SSX )[ 1: ]
-        VIPs = array( ( ( self.loadings[ :principal_components, : ].T ** 2 ).dot( SSXdiff ) * 
+        VIPs = array( ( ( self.loadings[ :principal_components, : ].T ** 2 ) @  SSXdiff * 
                           self.loadings.shape[ 1 ] / ( SSX[ 0 ] - SSX[ len( SSX ) - 1 ] ) ) ** 1 / 2 , ndmin = 2)                
         return VIPs
     
@@ -221,7 +223,7 @@ class PCA:
         
         scores = self.transform( X, principal_components = principal_components )
         scores = ( scores / scores.std( axis=0 ) ) ** 2 
-        contributions = multiply( X, scores.dot( self.loadings[ :principal_components, : ] ** 2 ) ** 1 / 2  ) 
+        contributions = multiply( X, ( scores @ self.loadings[ :principal_components, : ] ** 2 ) ** 1 / 2  ) 
 
         return contributions
  
