@@ -89,15 +89,18 @@ def scores_with_missing_values( omega, loadings, X_matrix, LVs = None, method = 
         
         B_1 = omega[ :LVs, :LVs ] @ loadings[ :LVs ] @ loadings[ :LVs ].T  # OMEGA.P*'.P*
         B_2 = pinv( loadings[ :LVs ] @ loadings.T @ omega @ loadings @ loadings[ :LVs ].T ) # (P*'.P*.OMEGA.P'.P*)^-1 
-        B = B_1 @ B_2 @ loadings[ :LVs ]   # OMEGA.P*'.P*.(P*'.P*.OMEGA.P.P*')^-1.P*'         
+        B = B_1 @ B_2 @ loadings[ :LVs ]   # OMEGA.P*'.P*.(P*'.P*.OMEGA.P.P*')^-1.P*'
+        scores = ( B @ X_matrix.T ).reshape( X_matrix.shape[ 0 ], -1 )         
 
     elif method == 'CMR' : # estimate using the 'CMR' method
-        B_1 = omega[ :LVs, :LVs ] @ loadings[ :LVs ]
-        B_2 = pinv( loadings.T @ omega @ loadings ) 
-        B = B_1 @ B_2
+        B_1 = omega[ :LVs, :LVs ] @ loadings[ :LVs ] # OMEGA.P*'
+        B_2 = pinv( loadings.T @ omega @ loadings )  # (P*.OMEGA.P*')^-1
+        B = B_1 @ B_2 #OMEGA.P*'.(P*.OMEGA.P*')^-1
+        scores = ( B @ X_matrix.T ).reshape( X_matrix.shape[ 0 ], -1 )
     
+    elif method == '0' : # just substitute all nans for zeros
+        scores = X_matrix @ loadings
+
     else: raise Exception('Method {} not implemented'.format(method))
 
-    scores = ( B @ X_matrix.T ).reshape( X_matrix.shape[ 0 ], -1 )
-        
     return scores
