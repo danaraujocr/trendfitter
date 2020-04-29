@@ -1,5 +1,5 @@
 from numpy import zeros, array
-from numpy.linalg import det, pinv
+from numpy.linalg import det, inv, pinv
 from math import floor
 from itertools import product
 # -*- coding: utf-8 -*-
@@ -13,7 +13,64 @@ auxiliary functions for the Trendfitter library
 @author: Daniel Rodrigues
 """
 
-"""
+def scores_with_missing_values( omega, loadings, X_matrix, LVs = None, method = 'PMP', inverse_method = None, inverse_term = None ):
+    """
+
+    function to estimate missing values using different techniques. 
+    
+    TSR - Trimmed Score Regression  - As in Arteaga & Ferrer's " Dealing with missing data in MSPC: several methods, different interpretations, some examples" (2002)
+
+    CMR - Conditional Mean Replacement - as in Nelston, et al.'s "Missing Data methods in PCA and PLS: Score calculations with incomplete observations" (1996)
+
+    Parameters:
+
+    Omega
+
+    loadings
+
+    X_matrix
+
+    method:
+
+    inverse_method:
+
+    inverse_term:
+    
+    returns
+    
+    score: vector of predicted scores
+
+    """
+    if LVs == None : LVs = omega.shape[0]
+
+    if method == 'TSR' : #estimate using the 'TSR' method - Trimmed Score Regression
+        
+        B_1 = omega[ :LVs, :LVs ] @ loadings[ :LVs ] @ loadings[ :LVs ].T  # OMEGA.P*'.P*
+        B_2 = pinv( loadings[ :LVs ] @ loadings.T @ omega @ loadings @ loadings[ :LVs ].T ) # (P*'.P*.OMEGA.P'.P*)^-1 
+        B_factor = B_1 @ B_2 @ loadings[ :LVs ]   # OMEGA.P*'.P*.(P*'.P*.OMEGA.P.P*')^-1.P*'
+       # print(B_factor)
+        scores = ( B_factor @ X_matrix.T ).reshape( X_matrix.shape[ 0 ], -1 )         
+
+    elif method == 'CMR' : # estimate using the 'CMR' method - Conditional mean replacement method
+        B_1 = omega[ :LVs, :LVs ] @ loadings[ :LVs ] # OMEGA.P*'
+        B_2 = pinv( loadings.T @ omega @ loadings )  #(P*.OMEGA.P*')^-1
+        B_factor = B_1 @ B_2 #OMEGA.P*'.(P*.OMEGA.P*')^-1
+        #print(B_factor)
+        scores = ( B_factor @ X_matrix.T ).reshape( X_matrix.shape[ 0 ], -1 )
+    
+    elif method == 'TSM' : # Trimmed score method - just substitute all nans for zeros
+        scores = X_matrix @ loadings.T
+
+    elif method == 'PMP' : #Projection to the Model Plane method
+        B_factor = pinv( loadings[ :LVs ] @ loadings[ :LVs ].T ) @ loadings[ :LVs ]
+        #print(B_factor)
+        scores = ( B_factor @ X_matrix.T ).reshape( X_matrix.shape[ 0 ], -1 )
+
+    else : raise Exception('User inputted method "{}" not implemented'.format(method))
+
+    return scores
+
+    """
 def subinverse( main_inverse_term, desired_variables ):
         
     
@@ -57,50 +114,3 @@ def subinverse( main_inverse_term, desired_variables ):
         
     return inverse_matrix
 """
-
-def scores_with_missing_values( omega, loadings, X_matrix, LVs = None, method = 'TSR', inverse_method = None, inverse_term = None ):
-    """
-
-    function to estimate missing values using different techniques. 
-    
-    TSR - Trimmed Score Regression  - As in Arteaga & Ferrer's " Dealing with missing data in MSPC: several methods, different interpretations, some examples" (2002)
-
-    CMR - Conditional Mean Replacement - as in Nelston, et al.'s "Missing Data methods in PCA and PLS: Score calculations with incomplete observations" (1996)
-
-    Parameters:
-
-    Omega
-
-    loadings
-
-    X_matrix
-
-    method:
-
-    inverse_method:
-
-    inverse_term:
-
-    """
-    if LVs == None : LVs = omega.shape[0]
-
-
-    if method == 'TSR' : #estimate using the 'TSR' method
-        
-        B_1 = omega[ :LVs, :LVs ] @ loadings[ :LVs ] @ loadings[ :LVs ].T  # OMEGA.P*'.P*
-        B_2 = pinv( loadings[ :LVs ] @ loadings.T @ omega @ loadings @ loadings[ :LVs ].T ) # (P*'.P*.OMEGA.P'.P*)^-1 
-        B = B_1 @ B_2 @ loadings[ :LVs ]   # OMEGA.P*'.P*.(P*'.P*.OMEGA.P.P*')^-1.P*'
-        scores = ( B @ X_matrix.T ).reshape( X_matrix.shape[ 0 ], -1 )         
-
-    elif method == 'CMR' : # estimate using the 'CMR' method
-        B_1 = omega[ :LVs, :LVs ] @ loadings[ :LVs ] # OMEGA.P*'
-        B_2 = pinv( loadings.T @ omega @ loadings )  # (P*.OMEGA.P*')^-1
-        B = B_1 @ B_2 #OMEGA.P*'.(P*.OMEGA.P*')^-1
-        scores = ( B @ X_matrix.T ).reshape( X_matrix.shape[ 0 ], -1 )
-    
-    elif method == '0' : # just substitute all nans for zeros
-        scores = X_matrix @ loadings
-
-    else: raise Exception('Method {} not implemented'.format(method))
-
-    return scores
