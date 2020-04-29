@@ -1,4 +1,4 @@
-from numpy import min, sum, mean, std, var, insert, array, multiply, where, zeros, append, isnan, nan_to_num, nansum, nanvar, nanmean, unique, ix_, nonzero
+from numpy import min, sum, mean, std, var, insert, array, multiply, where, zeros, append, isnan, nan_to_num, nansum, nanvar, nanmean, unique, ix_, nonzero, nan
 from numpy.linalg import norm
 from pandas import DataFrame
 from sklearn.model_selection import KFold
@@ -34,7 +34,7 @@ from tf_aux import scores_with_missing_values
 
 class PCA:
 
-    def __init__( self, principal_components = None, cv_splits_number = 7, tol = 1e-12, loop_limit = 100, missing_values_method = 'TSR' ):
+    def __init__( self, principal_components = None, cv_splits_number = 7, tol = 1e-12, loop_limit = 100, missing_values_method = 'TRI' ):
         
         self.loadings = None #loadings       
         self.principal_components = principal_components # number of principal components to be extracted
@@ -44,7 +44,9 @@ class PCA:
         self.q2 = [] # list of cross validation scores
         self.feature_importances_ = None #for scikit learn use with feature selection methods
         self.omega = None # scores covariance matrix for missing values score estimation
+        self.all_loadings = None
         self.missing_values_method = missing_values_method
+
         
     def fit( self, X, Y = None, int_call = False ):
 
@@ -92,13 +94,13 @@ class PCA:
             #After convergency, if the principal components desired quantity is undefined
             #then we check if the Component is in fact significant and keep on until all 
             #components are there            
-            if self.principal_components == None:
+            if self.principal_components == None :
                 
                 testq2 = []
                 
                 for train_index, test_index in kf.split( X ):
 
-                    q2_model = PCA( principal_components = latent_variable, missing_values_method = self.missing_values_method )
+                    q2_model = PCA( principal_components = latent_variable, missing_values_method = 'self.missing_values_method' )
                     q2_model.fit( X[ train_index ], int_call = True )
                     testq2.append( q2_model.score( X[ test_index ], X[ test_index ] ) )
 
@@ -116,22 +118,22 @@ class PCA:
             if latent_variable < 2 :
 
                 self.loadings = loadings_vec
-                final_scores = scores_vec
+                self.training_scores = scores_vec
 
             else:
 
                 self.loadings = insert( self.loadings, self.loadings.shape[0], loadings_vec, axis = 0 )
-                final_scores = insert( final_scores, final_scores.shape[1], scores_vec.T, axis = 1 )
+                self.training_scores = insert( self.training_scores, self.training_scores.shape[1], scores_vec.T, axis = 1 )
 
-            self.omega = final_scores.T @ final_scores # calculation of the covariance matrix
              
             #prediction of this model
-            MatrixXModel = final_scores @ self.loadings 
+            MatrixXModel = self.training_scores @ self.loadings 
         self.principal_components = self.loadings.shape[ 0 ]        
 
         if not int_call : 
             self.feature_importances_ = self.VIPs_calc(X)
-        
+            self.omega = self.training_scores.T @ self.training_scores # calculation of the covariance matrix
+
         pass
         
     def predict( self, X, principal_components = None ):
@@ -153,12 +155,6 @@ class PCA:
             X_nan = isnan( X )
             variables_missing_mask = unique( X_nan, axis = 0 )
             
-            """
-            if missing_values_method == 'TSR' : 
-                main_inverse_term = pinv( self.loadings.dot( self.loadings.T ).dot( self.omega ).dot( self.loadings ).dot( self.loadings.T ) )
-            elif missing_values_method == 'CMR' : 
-                main_inverse_term = pinv( self.loadings.T.dot( self.omega ).dot( self.loadings ) )
-            """
             for row_mask in variables_missing_mask :
                 
                 rows_indexes = where( ( X_nan == row_mask ).all( axis = 1 ) )                
