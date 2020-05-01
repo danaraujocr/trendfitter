@@ -298,32 +298,3 @@ class PLS:
         SPE_contributions = ( error ** 2 ) * where( error > 0, 1, -1 )
                
         return SPE_contributions
-        
-import pandas as pd
-#from sklearn.impute import KNNImputer
-
-#imputer = KNNImputer( weights = 'distance')
-
-data = pd.read_csv("Kamyr-full2 toy_example.csv", index_col = 1, sep = ';')
-data = data.drop( 'Hour', axis = 'columns' )
-#data = data.dropna()
-#data.to_csv("toy_example kappa no_nan.csv")
-data = (data - (data).mean()) / data.std()
-X = data.drop('Y-Kappa', axis = 'columns')
-Y = data['Y-Kappa']
-
-model = PLS(missing_values_method='PMP')
-model.fit(X, Y, random_state = 2)
-weights = model.weights
-weights_star = model.weights_star
-p_loadings = model.p_loadings
-c_loadings = model.c_loadings
-preds = model.predict(X)
-#score_data_KNN = model.score(imputer.fit_transform(X),Y)
-scores_X = model.transform(X)
-scores_X2 = model.scores
-T2s = model.Hotellings_T2(X)
-SPEs_X = model.SPEs_X(X)
-print(weights_star)
-contributions_scores = model.contributions_scores_ind(X)
-contributions_spe = model.contributions_spe(X) 
