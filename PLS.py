@@ -66,8 +66,8 @@ class PLS:
                     weights = array( X.T @ y_scores1  / ( y_scores1.T @ y_scores1 ), ndmin = 2 ).T #calculating w vector by regressing all u values into X transpose
                     weights = weights / norm( weights ) #normalizing w vector
                     x_scores = X @ weights.T / ( weights @ weights.T ) #regressing all w values into X matrix and producing a t matrix
-                    c_loadings = array( Y.T @ x_scores / ( x_scores.T @ x_scores ), ndmin = 2 ) #regressing all t values into Y and producing the c matrix
-                    y_scores = Y @ c_loadings.T / ( c_loadings.T @ c_loadings ) #calculating new u values by regressing cs into Ys
+                    c_loadings = array( Y.T @ x_scores / ( x_scores.T @ x_scores ), ndmin = 2 ).T #regressing all t values into Y and producing the c matrix
+                    y_scores = Y @ c_loadings.T / ( c_loadings @ c_loadings.T ) #calculating new u values by regressing cs into Ys
                     
                     conv = norm( y_scores1 - y_scores )
                     y_scores1 = y_scores
