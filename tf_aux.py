@@ -13,7 +13,7 @@ auxiliary functions for the Trendfitter library
 @author: Daniel Rodrigues
 """
 
-def scores_with_missing_values( omega, loadings, X_matrix, LVs = None, method = 'PMP', inverse_method = None, inverse_term = None ):
+def scores_with_missing_values( omega, loadings, X_matrix, LVs = None, method = 'TSM', inverse_method = None, inverse_term = None ):
     """
 
     function to estimate missing values using different techniques. 
@@ -59,7 +59,7 @@ def scores_with_missing_values( omega, loadings, X_matrix, LVs = None, method = 
         scores = ( B_factor @ X_matrix.T ).reshape( X_matrix.shape[ 0 ], -1 )
     
     elif method == 'TSM' : # Trimmed score method - just substitute all nans for zeros
-        scores = X_matrix @ loadings.T
+        scores = X_matrix @ loadings[ :LVs ].T
 
     elif method == 'PMP' : #Projection to the Model Plane method
         B_factor = pinv( loadings[ :LVs ] @ loadings[ :LVs ].T ) @ loadings[ :LVs ]
