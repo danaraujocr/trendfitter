@@ -7,7 +7,7 @@ from trendfitter.auxiliary.tf_aux import scores_with_missing_values
 
 
 class PLS:
-    def __init__(self, latent_variables = None, cv_splits_number = 7, tol = 1e-8, loop_limit = 1000, deflation = 'both', missing_values_method = 'TRI' ):
+    def __init__(self, latent_variables = None, cv_splits_number = 7, tol = 1e-8, loop_limit = 1000, deflation = 'both', missing_values_method = 'TSM' ):
         
         self.p_loadings = None
         self.weights = None
@@ -105,7 +105,7 @@ class PLS:
                 
 
                 q2_model = PLS(latent_variables = latent_variable, tol = self.tol, deflation = self.deflation, loop_limit = self.loop_limit
-                                , missing_values_method = 'TRI') # an internal model is initialized
+                                , missing_values_method = 'TSM') # an internal model is initialized
                 for train_index, test_index in kf.split(X):
                     q2_model.fit(Orig_X[train_index,:], Orig_Y[train_index,:]) # this model is trained with only a partition of the total dataset
                     testq2.append(q2_model.score(Orig_X[test_index,:], Orig_Y[test_index,:])) # its performance is registered in a list
