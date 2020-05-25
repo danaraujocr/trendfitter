@@ -2,7 +2,7 @@ from numpy import min, sum, mean, std, nanvar, insert, array, where, isnan, nan_
 from numpy.linalg import norm
 from pandas import DataFrame, Series
 from sklearn.model_selection import KFold
-from tf_aux import scores_with_missing_values
+from trendfitter.auxiliary.tf_aux import scores_with_missing_values
 
 
 
@@ -118,7 +118,8 @@ class PLS:
                         q2_final[-1] - q2_final[-2] < 0.01 or  # mean cross-validation performance of the model has increased less than 1% with the addition of another latent variable
                         latent_variable > min(X.shape)/2): # the amount of latent variables added is more than half the variables on X
                         self.q2y=q2_final[:-1]
-                        break #stop adding new Components if any of the above rules of thumbs are not respected
+                        self.latent_variables = latent_variable -1 
+                        if self.missing_values_method != 'TSM' : break  #In case of TSM use there is no need of more components for missing value estimation
                         
             """-------------------------------- p loadings calculation section ----------------------------"""                        
             if dataset_complete: # if the dataset is without problematic data, matrix implementation is possible and faster
@@ -166,7 +167,8 @@ class PLS:
             
             """-------------------------------- VIPs property calculations ------------------------"""
             #VIPs_calc = self.VIPs_calc(Orig_X,Orig_Y)
-        self.latent_variables = self.weights_star.shape[ 0 ]
+            if self.latent_variables != None and latent_variable > 2 * self.latent_variables: break
+
 
         return
         
