@@ -2,7 +2,7 @@ from numpy import min, sum, mean, std, var, insert, array, multiply, where, zero
 from numpy.linalg import norm
 from pandas import DataFrame
 from sklearn.model_selection import KFold
-from tf_aux import scores_with_missing_values
+from trendfitter.auxiliary.tf_aux import scores_with_missing_values
 
 """
     This Script is for a function that calculates a PCA model in the standards of the
@@ -113,7 +113,7 @@ class PCA:
                         q2_final[ -1 ] - q2_final[ -2 ] < 0.01 or \
                         latent_variable > min( X.shape ) / 2 ):
                         self.q2 = q2_final[ :-1 ]
-                        self.principal_components = latent_variable
+                        self.principal_components = latent_variable - 1
                         if self.missing_values_method != 'TSM' : break 
                         
             #if significant, then we add them to the loadings and score matrixes that will be returned as method result
@@ -127,8 +127,7 @@ class PCA:
                 self.loadings = insert( self.loadings, self.loadings.shape[0], loadings_vec, axis = 0 )
                 self.training_scores = insert( self.training_scores, self.training_scores.shape[1], scores_vec.T, axis = 1 )
 
-            if self. principal_components != None :
-                if latent_variable > 2*self.principal_components: break
+            if self. principal_components != None and latent_variable > 2*self.principal_components: break # Ensuring to extract at least double the useful components for missing values estimation:
 
             #prediction of this model
             MatrixXModel = self.training_scores @ self.loadings 
