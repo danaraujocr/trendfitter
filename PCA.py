@@ -34,7 +34,7 @@ from tf_aux import scores_with_missing_values
 
 class PCA:
 
-    def __init__( self, principal_components = None, cv_splits_number = 7, tol = 1e-12, loop_limit = 100, missing_values_method = 'TRI' ):
+    def __init__( self, principal_components = None, cv_splits_number = 7, tol = 1e-12, loop_limit = 100, missing_values_method = 'TSM' ):
         
         self.loadings = None #loadings       
         self.principal_components = principal_components # number of principal components to be extracted
@@ -46,6 +46,7 @@ class PCA:
         self.omega = None # scores covariance matrix for missing values score estimation
         self.all_loadings = None
         self.missing_values_method = missing_values_method
+        self._coef = None
 
         
     def fit( self, X, Y = None, int_call = False ):
@@ -100,7 +101,7 @@ class PCA:
                 
                 for train_index, test_index in kf.split( X ):
 
-                    q2_model = PCA( principal_components = latent_variable, missing_values_method = 'self.missing_values_method' )
+                    q2_model = PCA( principal_components = latent_variable, missing_values_method = self.missing_values_method )
                     q2_model.fit( X[ train_index ], int_call = True )
                     testq2.append( q2_model.score( X[ test_index ], X[ test_index ] ) )
 
@@ -112,7 +113,8 @@ class PCA:
                         q2_final[ -1 ] - q2_final[ -2 ] < 0.01 or \
                         latent_variable > min( X.shape ) / 2 ):
                         self.q2 = q2_final[ :-1 ]
-                        break #stop adding new Components if any of the above rules of thumbs are not respected
+                        self.principal_components = latent_variable
+                        if self.missing_values_method != 'TSM' : break 
                         
             #if significant, then we add them to the loadings and score matrixes that will be returned as method result
             if latent_variable < 2 :
@@ -125,13 +127,15 @@ class PCA:
                 self.loadings = insert( self.loadings, self.loadings.shape[0], loadings_vec, axis = 0 )
                 self.training_scores = insert( self.training_scores, self.training_scores.shape[1], scores_vec.T, axis = 1 )
 
-             
+            if self. principal_components != None :
+                if latent_variable > 2*self.principal_components: break
+
             #prediction of this model
             MatrixXModel = self.training_scores @ self.loadings 
-        self.principal_components = self.loadings.shape[ 0 ]        
+             
 
         if not int_call : 
-            self.feature_importances_ = self.VIPs_calc(X)
+            self.feature_importances_ = self.VIPs_calc( X,  principal_components = self.principal_components )
             self.omega = self.training_scores.T @ self.training_scores # calculation of the covariance matrix
 
         pass
