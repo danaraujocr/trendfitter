@@ -57,12 +57,10 @@ class PLS:
             Calculates squared prediction errors on the X side 
         SPEs_Y(X, Y)
             Calculates squared prediction errors for the predictions
-        contributions_scores(X)
+        contributions_scores_ind(X)
             calculates the contributions of each variable to the scores on the super level
         contributions_SPE_X(X)
             calculates the contributions of each variable to the SPE on the X side for 
-        contributions_SPE_Y(X)
-            calculates the contributions of each variable to the SPE on the predictions
 
     """
     def __init__(self, cv_splits_number = 7, tol = 1e-8, loop_limit = 1000, missing_values_method = 'TSM'):
@@ -442,6 +440,36 @@ class PLS:
         SPE = nansum( error ** 2, axis = 1 )
         
         return SPE
+
+    def SPEs_Y(self, X, Y, latent_variables = None) :
+
+        """
+        Calculates the Squared prediction error for the Y values.
+
+        Parameters
+        ----------
+        X : array_like
+            Samples X Matrix
+        Y : array_like
+            ground truth Y Matrix
+        latent_variables : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        SPE : array_like 
+            returns all calculated SPEs for the X samples
+        """
+        
+        if latent_variables == None : latent_variables = self.latent_variables
+
+        if isinstance(X, DataFrame) : X = X.to_numpy()
+        
+        
+        error = Y - self.predict(X, latent_variables = latent_variables)
+        SPE = nansum( error ** 2, axis = 1 )
+        
+        return SPE
     
     def RMSEE ( self, X, Y, latent_variables = None ):
 
@@ -501,7 +529,7 @@ class PLS:
 
         return contributions
     
-    def contributions_spe(self, X, latent_variables = None):
+    def contributions_SPE_X(self, X, latent_variables = None):
 
         """
         calculates the individual sample individual contributions to the squared prediction error 
