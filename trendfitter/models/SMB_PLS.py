@@ -1,4 +1,4 @@
-from numpy import array, isnan, nansum, nan_to_num, multiply, sum, sqrt, append, zeros, place, nan, concatenate
+from numpy import array, isnan, nansum, nan_to_num, multiply, sum, sqrt, append, zeros, place, nan, concatenate, mean, nanvar
 from numpy.linalg import norm, pinv
 from sklearn.model_selection import KFold
 from pandas import DataFrame, Series
@@ -36,7 +36,7 @@ class SMB_PLS:
 
         Attributes
         ----------
-        latent_variables : [int], optional
+        latent_variables : [int]
             list of number of latent variables deemed relevant from each block. 
         block_divs : [int]
             list with the index of every block final position. ex. [2,4] means two blocks with 
@@ -178,20 +178,37 @@ class SMB_PLS:
         """------------------- Handling the case where the amount of latent variables is not defined -------------------"""
         if latent_variables != None : #not implemented
             self.latent_variables = latent_variables #not implemented
-        else :
-            latent_variables = block_divs #maximum amount of extractable latent variables
-            kf = KFold( n_splits = self.cv_splits_number, shuffle = True, random_state = 2 )
+            max_LVs = latent_variables
+        else:
+            max_LVs = array(block_divs) - array([0] + block_divs[:-1])
+            
             
         """------------------- model Calculation -------------"""
-        q2_final = [] #not implemented
-        block_weights_outer = {}
-        block_p_loadings_outer = {}
-        c_loadings_outer = {}
-        for block, LVs in enumerate( latent_variables ):
+        q2_final = [0]
+        LV_valid = [0 for _ in block_divs]
+        for block, LVs in enumerate(max_LVs):
 
             for LV in range(LVs):
 
+                if self.latent_variables != None and  LV > 2 * self.latent_variables[block]: break
+
                 result = self._SMBPLS_1LV(X, block_coord_pairs[block:], Y, missing_values_list, block)
+
+                #--------------------------cross-validation------------------------------
+                if (block != 0 or LV != 0) and self.latent_variables == None:
+
+                    LV_valid[block] = LV + 1
+                    q2_final.append(self._cross_validate(Orig_X, block_divs, Orig_Y, LV_valid))
+
+                    if (q2_final[-1] < q2_final[-2] or  # mean cross-validation performance of the model has decreased with the addition of another latent variable
+                        q2_final[-1] - q2_final[-2] < 0.01 or  # mean cross-validation performance of the model has increased less than 1% with the addition of another latent variable
+                        LV > min(block_coord_pairs[block][1] - block_coord_pairs[block][1]) / 2): # the amount of latent variables added is more than half the variables on X
+                        
+                        self.q2y = q2_final[:-1]
+                        LV_valid[block] -= 1
+                        self.latent_variables = LV_valid 
+                        if self.missing_values_method == 'TSM' : break  #In case of TSM use there is no need of more components for missing value estimation
+
 
                 #------------------------------------deflation----------------------------
 
@@ -218,41 +235,54 @@ class SMB_PLS:
                     self.block_p_loadings = append(self.block_p_loadings, result['pb'], axis = 1)
                     self.superlevel_p_loadings = append(self.superlevel_p_loadings, result['p'], axis = 1)
                     self.c_loadings = append(self.c_loadings, result['c'], axis = 1)
+                
+                
+                #elif self.latent_variables[block] ==
         
-        self.x_weights_star = self.x_weights @ pinv( self.superlevel_p_loadings.T @ self.x_weights )
+        self.x_weights_star = self.x_weights @ pinv(self.superlevel_p_loadings.T @ self.x_weights)
 
         return
 
-    def transform( self, X, latent_variables = None, mode = 'star' ): # To Do
+    def transform(self, X, latent_variables = None): 
+        
+        if isinstance(X, DataFrame): 
+            X_values = X.to_numpy()
+        else:
+            X_values = X
+        #X_values = X
+        if latent_variables == None : latent_variables = self.latent_variables
 
+        # TO DO : check if X makes sense with latent variables
 
-        pass
+        y_scores = X_values @ self.x_weights_star[:, :sum(latent_variables)]
+
+        return y_scores
 
     def transform_b( self, X, latent_variables = None ): # To Do
 
         pass
                     
-    def predict( self, X, latent_variables = None, mode = 'star' ): # To Do
-     
-        """ to make a prediction, one takes the X matrix, multiply it by the weights_stars to get the Y-scores 
-         then the y scores are multiplied by the c_loadings so that we get our predictions"""
-        df_index = None
-        df_columns = None
-        if isinstance( X, DataFrame ):
-            X = X.values
-            df_index = X.index
-            df_columns = X.columns
-        
-            
+    def predict( self, X, latent_variables = None): # To Do
+
         if latent_variables == None : latent_variables = self.latent_variables
-        
-        
-        
-        return 0
+     
+        Y_hat = self.transform(X, latent_variables = latent_variables) @ self.c_loadings[:, :sum(latent_variables)].T
 
-    def score(self, X, Y): # To Do
+        return Y_hat
 
-        return 0
+    def score(self, X, Y, latent_variables = None): # To Do
+
+        if latent_variables == None : latent_variables = self.latent_variables
+        if isinstance(Y, DataFrame) or isinstance(Y, Series): 
+            Y_values = array(Y.to_numpy(), ndmin = 2).T
+        else: 
+            Y_values = Y
+
+        Y_hat = self.predict(X, latent_variables = latent_variables)
+        F = Y_values - Y_hat
+        score = 1 - nanvar( F ) / nanvar( Y_values )
+
+        return score
     
     def Hotellings_T2(self, X, latent_variables = None): # To Do
         return 0
@@ -401,8 +431,19 @@ class SMB_PLS:
 
         return array(p_loadings, ndmin = 2).T
 
-    def _cross_validate(self, X, Y):
+    def _cross_validate(self, X_orig, block_divs, Y_orig, LVs):
 
-        return 0
+        
+        cv_folds = KFold(n_splits = self.cv_splits_number)
+        q2 = []
+
+        for train_index, test_index in cv_folds.split(X_orig):
+            cv_model = SMB_PLS(tol = self.tol)
+            cv_model.fit(X_orig[train_index], block_divs, Y_orig[train_index], latent_variables = LVs)
+            q2.append(cv_model.score(X_orig[test_index], Y_orig[test_index]))
+
+        q2 = mean(q2)
+
+        return q2
 
     
