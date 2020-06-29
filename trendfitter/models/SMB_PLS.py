@@ -1,4 +1,4 @@
-from numpy import array, isnan, nansum, nan_to_num, multiply, sum, sqrt, append, zeros, place, nan, concatenate, mean, nanvar
+from numpy import array, isnan, nansum, nan_to_num, multiply, sum, sqrt, append, zeros, place, nan, concatenate, mean, nanvar, std, unique, where, nanmean
 from numpy.linalg import norm, pinv
 from sklearn.model_selection import KFold
 from pandas import DataFrame, Series
@@ -65,6 +65,8 @@ class SMB_PLS:
                 to the data
         transform(X)
             Transforms the original data to the latent variable space in the super level 
+        transform_inv(scores)
+            Returns the superlevel scores to the original data space
         transform_b(X, block)
             Transforms the original data to the latent variable space in the block level for
                 all blocks
@@ -117,8 +119,7 @@ class SMB_PLS:
         self.VIPs = None
         self.coefficients = None
         self._omega = None # score covariance matrix for missing value estimation
-        
-        
+            
     def fit(self, X, block_divs, Y, latent_variables = None, deflation = 'both', int_call = False):
         """
         Adjusts the model parameters to best fit the Y using the algorithm defined in 
@@ -245,24 +246,105 @@ class SMB_PLS:
 
     def transform(self, X, latent_variables = None): 
         
+        """
+        Transforms the X matrix to the model-fitted space returning scores
+        of the super level.
+
+        Parameters
+        ----------
+        X : array_like
+            Matrix with all the data to be used as predictors in one only object
+        latent_variables : [int], optional
+            list with number of latent variables to be used. 
+
+        Returns
+        -------
+        result : array_like of shape (X.shape[0], sum(latent_variables))
+            Scores for the X values transformed on the super level
+
+        """
+
         if isinstance(X, DataFrame): 
             X_values = X.to_numpy()
         else:
-            X_values = X
-        #X_values = X
+            X_values = X    
+
         if latent_variables == None : latent_variables = self.latent_variables
+        
+        if isnan( sum( X ) ) :
+            
+            result = zeros( ( X.shape[ 0 ], latent_variables ) )
+            X_nan = isnan( X )
+            variables_missing_mask = unique( X_nan, axis = 0 )
+
+            for row_mask in variables_missing_mask :
+                
+                rows_indexes = where( ( X_nan == row_mask ).all( axis = 1 ) )                
+                
+                if sum( row_mask ) == 0 : 
+
+                    result[ rows_indexes, : ] = X[ rows_indexes, :] @ self.x_weights_star[ :latent_variables, : ].T 
+                
+                else :
+                    
+                    result[ rows_indexes, : ] = scores_with_missing_values( self.omega, self.x_weights_star[ : , ~row_mask ], X[ rows_indexes[ 0 ][ :, None ], ~row_mask], 
+                                                                            LVs = latent_variables, method = self.missing_values_method )
+                    
+        else : result = X @ self.x_weights_star[ :latent_variables, : ].T 
 
         # TO DO : check if X makes sense with latent variables
+        return result
 
-        y_scores = X_values @ self.x_weights_star[:, :sum(latent_variables)]
+    def transform_inv(self, scores, latent_variables = None):
 
-        return y_scores
+        """
+        Transforms the superlevel scores matrix to the original X.
 
+        Parameters
+        ----------
+        scores : array_like
+            Matrix with all the scores to be used to rebuild X
+        latent_variables : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        result : array_like 
+            matrix of rebuilt X from scores
+        """
+                  
+        if latent_variables == None : latent_variables = self.latent_variables
+        result = scores @ self.x_weights_star[ :latent_variables, : ] 
+        
+        return result
+    
     def transform_b( self, X, latent_variables = None ): # To Do
 
         pass
                     
-    def predict( self, X, latent_variables = None): # To Do
+    def predict( self, X, latent_variables = None): 
+
+        """
+        Predicts Y values using X array.
+
+        Parameters
+        ----------
+        X : array_like
+            Samples Matrix
+        latent_variables : [int], optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        preds : array_like 
+            returns predictions
+        """
+
+        if isinstance( X, DataFrame ) : X = X.to_numpy()        
+        if latent_variables == None : latent_variables = self.latent_variables        
+        preds = self.transform(X, latent_variables = latent_variables ) @ self.c_loadings[ :latent_variables, : ] 
+        
+        return preds
 
         if latent_variables == None : latent_variables = self.latent_variables
      
@@ -270,7 +352,27 @@ class SMB_PLS:
 
         return Y_hat
 
-    def score(self, X, Y, latent_variables = None): # To Do
+    def score(self, X, Y, latent_variables = None): 
+
+        """
+        Return the coefficient of determination R^2 of the prediction.
+
+        R² is defined as 1 - Variance(Error) / Variance(Y) with Error = Y - predictions(X)
+
+        Parameters
+        ----------
+        X : array_like
+            Matrix with all the X to be used
+        Y : array_like
+            Matrix with all the Y ground truth values
+        latent_variables : [int], optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        score : float 
+            returns calculated r².
+        """
 
         if latent_variables == None : latent_variables = self.latent_variables
         if isinstance(Y, DataFrame) or isinstance(Y, Series): 
@@ -284,24 +386,146 @@ class SMB_PLS:
 
         return score
     
-    def Hotellings_T2(self, X, latent_variables = None): # To Do
-        return 0
-    
-    def SPEs_X(self, X, latent_variables = None): # To Do
-             
-        return 0 
+    def Hotellings_T2(self, X, latent_variables = None): 
+        
+        """
+        Calculates the Hotelling's T² for the X samples on the superlevel.
 
-    def VIPs_calc(self, X, Y): # To Do
+        Parameters
+        ----------
+        X : array_like
+            Samples Matrix
+        latent_variables : [int], optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        T2s : array_like 
+            returns all calculated T²s for the X samples
+        """
         
-        return VIPs
+        if isinstance( X, DataFrame ) : X = X.to_numpy()     #dataframe, return it
+   
+        if latent_variables == None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        
+        scores_matrix = self.transform( X, latent_variables = latent_variables )
+        
+        T2s = sum( ( ( scores_matrix / std( scores_matrix) ) ** 2), axis = 1 )
+        
+        return T2s
     
-    def contributions_scores_ind(self, X, latent_variables = None): # To Do
+    def SPEs_X(self, X, latent_variables = None): 
         
-        return 0
+        """
+        Calculates the Squared prediction error for for the X matrix rebuild.
+
+        Parameters
+        ----------
+        X : array_like
+            Samples Matrix
+        latent_variables : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        SPE : array_like 
+            returns all calculated SPEs for the X samples
+        """
+        
+        if latent_variables == None : latent_variables = self.latent_variables
+
+        if isinstance(X, DataFrame) : X = X.to_numpy()
+        
+        
+        error = X - self.transform_inv(self.transform(X))   
+        SPE = nansum( error ** 2, axis = 1 )
+        
+        return SPE
+
+    def SPEs_Y(self, X, Y, latent_variables = None) :
+
+        """
+        Calculates the Squared prediction error for the Y values.
+
+        Parameters
+        ----------
+        X : array_like
+            Samples X Matrix
+        Y : array_like
+            ground truth Y Matrix
+        latent_variables : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        SPE : array_like 
+            returns all calculated SPEs for the X samples
+        """
+        
+        if latent_variables == None : latent_variables = self.latent_variables
+
+        if isinstance(X, DataFrame) : X = X.to_numpy()
+        
+        
+        error = Y - self.predict(X, latent_variables = latent_variables)
+        SPE = nansum( error ** 2, axis = 1 )
+        
+        return SPE
+ 
+    def contributions_scores_ind(self, X, latent_variables = None): 
+        
+        """
+        calculates the sample individual contributions to the super level scores.
+
+        Parameters
+        ----------
+        X : array_like
+            Sample matrix 
+        latent_variables : [int], optional
+            List of number of latent variables to be used. 
+
+        Returns
+        -------
+        contributions : array_like 
+            matrix of scores contributions for every X sample
+        """
+
+        if latent_variables == None : latent_variables = self.latent_variables
+        if isinstance(X, DataFrame) : X = X.to_numpy()
+
+        scores = self.transform(X, latent_variables = latent_variables)
+        scores = (scores / std(scores, axis = 0) ** 2)
+        contributions = X * ( scores @ (self.x_weights_star[ :latent_variables, : ] ** 2 ) ** 1 / 2 )
+
+        return contributions
     
-    def contributions_spe(self, X, latent_variables = None): # To Do
+    def contributions_SPE_X(self, X, latent_variables = None): 
         
-        return 0
+        """
+        calculates the individual sample individual contributions to the squared prediction error 
+            of the X variables matrix reconstruction.
+
+        Parameters
+        ----------
+        X : array_like
+            Sample matrix 
+        latent_variables : [int], optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        SPE_contributions : array_like 
+            matrix of SPE contributions for every X sample
+        """
+
+        if latent_variables == None : latent_variables = self.latent_variables
+        if isinstance(X, DataFrame) : X = X.to_numpy()
+        
+        error = X - self.transform_inv(self.transform(X))
+        
+        SPE_contributions = (error ** 2) * where(error > 0, 1, -1)
+               
+        return SPE_contributions
 
     def _SMBPLS_1LV(self, X, block_coord_pairs, Y, missing_values, block):
         
@@ -446,4 +670,19 @@ class SMB_PLS:
 
         return q2
 
-    
+    def _VIPs_calc( self, X, Y ): # code for calculation of VIPs
+
+        """
+        Calculates the VIP scores for all the variables for the prediction
+        """
+        
+        SSY = sum( ( Y - nanmean( Y, axis = 0 ) ) ** 2)
+        for i in range( 1, self.x_weights_star.shape[ 1 ] + 1 ):
+            pred = self.predict( X, latent_variables = i )
+            res = Y - pred
+            SSY.loc[ i ] = sum(( ( res - res.mean( axis = 0 ) ) ** 2))
+            
+        SSYdiff = SSY.iloc[ :-1 ]-SSY.iloc[ 1: ]
+        VIPs = ( ( ( self.weights ** 2) @ SSYdiff.values ) * self.weights.shape[1] / ( SSY[0] - SSY[-1] ) ** 1 / 2 )
+       
+        return VIPs
