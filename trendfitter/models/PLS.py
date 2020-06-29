@@ -47,6 +47,8 @@ class PLS:
                 to the data
         transform(X)
             Transforms the original data to the latent variable space in the super level 
+        transform_inv(scores)
+            Returns the scores to the original data space
         predict(X)
             Predicts Y values 
         score(X, Y)
@@ -388,7 +390,7 @@ class PLS:
     def Hotellings_T2( self, X, latent_variables = None ):
 
         """
-        Calculates the Hotelling's T² for the X saples.
+        Calculates the Hotelling's T² for the X samples.
 
         Parameters
         ----------
@@ -436,7 +438,7 @@ class PLS:
         if isinstance(X, DataFrame) : X = X.to_numpy()
         
         
-        error = X - nan_to_num( X ) @ self.weights_star.T @ self.weights_star 
+        error = X - self.transform_inv(self.transform(X))  
         SPE = nansum( error ** 2, axis = 1 )
         
         return SPE
@@ -523,9 +525,9 @@ class PLS:
         if latent_variables == None : latent_variables = self.latent_variables
         if isinstance(X, DataFrame) : X = X.to_numpy()
 
-        scores = self.transform( X, latent_variables = latent_variables )
-        scores = ( scores / std( scores, axis = 0 ) ** 2 )
-        contributions = X * ( scores @ (self.weights_star[ :latent_variables, : ] ** 2 ) ** 1 / 2 )
+        scores = self.transform(X, latent_variables = latent_variables)
+        scores = (scores / std(scores, axis = 0) ** 2)
+        contributions = X * (scores @ (self.weights_star[ :latent_variables, : ] ** 2 ) ** 1 / 2 )
 
         return contributions
     
@@ -551,9 +553,9 @@ class PLS:
         if latent_variables == None : latent_variables = self.latent_variables
         if isinstance(X, DataFrame) : X = X.to_numpy()
         
-        error = X - self.transform_inv( self.transform( X ) )
+        error = X - self.transform_inv(self.transform(X))
         
-        SPE_contributions = ( error ** 2 ) * where( error > 0, 1, -1 )
+        SPE_contributions = (error ** 2) * where(error > 0, 1, -1)
                
         return SPE_contributions
 
