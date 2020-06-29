@@ -177,8 +177,8 @@ class SMB_PLS:
         missing_values_list = missing_values_list + [isnan(sum(Y))] # This is a check for missing data it'll allow for dealing with it in the next steps
         
         """------------------- Handling the case where the amount of latent variables is not defined -------------------"""
-        if latent_variables != None : #not implemented
-            self.latent_variables = latent_variables #not implemented
+        if latent_variables != None : 
+            self.latent_variables = latent_variables 
             max_LVs = latent_variables
         else:
             max_LVs = array(block_divs) - array([0] + block_divs[:-1])
@@ -203,11 +203,11 @@ class SMB_PLS:
 
                     if (q2_final[-1] < q2_final[-2] or  # mean cross-validation performance of the model has decreased with the addition of another latent variable
                         q2_final[-1] - q2_final[-2] < 0.01 or  # mean cross-validation performance of the model has increased less than 1% with the addition of another latent variable
-                        LV > min(block_coord_pairs[block][1] - block_coord_pairs[block][1]) / 2): # the amount of latent variables added is more than half the variables on X
+                        LV > (block_coord_pairs[block][1] - block_coord_pairs[block][0]) // 2): # the amount of latent variables added is more than half the variables on X
                         
                         self.q2y = q2_final[:-1]
                         LV_valid[block] -= 1
-                        self.latent_variables = LV_valid 
+                        if block == len(max_LVs) - 1 : self.latent_variables = LV_valid 
                         if self.missing_values_method == 'TSM' : break  #In case of TSM use there is no need of more components for missing value estimation
 
 
@@ -235,12 +235,12 @@ class SMB_PLS:
                     self.block_weights = append(self.block_weights, result['wb'], axis = 1)
                     self.block_p_loadings = append(self.block_p_loadings, result['pb'], axis = 1)
                     self.superlevel_p_loadings = append(self.superlevel_p_loadings, result['p'], axis = 1)
-                    self.c_loadings = append(self.c_loadings, result['c'], axis = 1)
+                    self.c_loadings = append(self.c_loadings, result['c'], axis = 0)
                 
                 
                 #elif self.latent_variables[block] ==
         
-        self.x_weights_star = self.x_weights @ pinv(self.superlevel_p_loadings.T @ self.x_weights)
+        self.x_weights_star = (self.x_weights @ pinv(self.superlevel_p_loadings.T @ self.x_weights)).T
 
         return
 
@@ -269,7 +269,10 @@ class SMB_PLS:
         else:
             X_values = X    
 
-        if latent_variables == None : latent_variables = self.latent_variables
+        if latent_variables == None : 
+            latent_variables = sum(self.latent_variables)
+        else:
+            latent_variables = sum(latent_variables)
         
         if isnan( sum( X ) ) :
             
@@ -313,7 +316,11 @@ class SMB_PLS:
             matrix of rebuilt X from scores
         """
                   
-        if latent_variables == None : latent_variables = self.latent_variables
+        if latent_variables == None : 
+            latent_variables = sum(self.latent_variables)
+        else:
+            latent_variables = sum(latent_variables)
+
         result = scores @ self.x_weights_star[ :latent_variables, : ] 
         
         return result
@@ -341,8 +348,12 @@ class SMB_PLS:
         """
 
         if isinstance( X, DataFrame ) : X = X.to_numpy()        
-        if latent_variables == None : latent_variables = self.latent_variables        
-        preds = self.transform(X, latent_variables = latent_variables ) @ self.c_loadings[ :latent_variables, : ] 
+        if latent_variables == None : 
+            latent_variables = sum(self.latent_variables)
+        else:
+            latent_variables = sum(latent_variables)
+
+        preds = self.transform(X, latent_variables = latent_variables ) @ self.c_loadings[ :latent_variables, : ]
         
         return preds
 
@@ -410,7 +421,7 @@ class SMB_PLS:
         
         scores_matrix = self.transform( X, latent_variables = latent_variables )
         
-        T2s = sum( ( ( scores_matrix / std( scores_matrix) ) ** 2), axis = 1 )
+        T2s = sum(((scores_matrix / std(scores_matrix)) ** 2), axis = 1)
         
         return T2s
     
@@ -437,7 +448,7 @@ class SMB_PLS:
         if isinstance(X, DataFrame) : X = X.to_numpy()
         
         
-        error = X - self.transform_inv(self.transform(X))   
+        error = X - self.transform_inv(self.transform(X, latent_variables = latent_variables), latent_variables = latent_variables)   
         SPE = nansum( error ** 2, axis = 1 )
         
         return SPE
@@ -495,6 +506,12 @@ class SMB_PLS:
 
         scores = self.transform(X, latent_variables = latent_variables)
         scores = (scores / std(scores, axis = 0) ** 2)
+
+        if latent_variables == None : 
+            latent_variables = sum(self.latent_variables)
+        else:
+            latent_variables = sum(latent_variables)
+
         contributions = X * ( scores @ (self.x_weights_star[ :latent_variables, : ] ** 2 ) ** 1 / 2 )
 
         return contributions
