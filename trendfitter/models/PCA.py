@@ -4,52 +4,102 @@ from pandas import DataFrame
 from sklearn.model_selection import KFold
 from trendfitter.auxiliary.tf_aux import scores_with_missing_values
 
-"""
-    This Script is for a function that calculates a PCA model in the standards of the
-    scikit library implementation so that one can use it with all the functions that
-    can receive a regressor or classifier as an object that exists in that library.
-    
-    The script uses NIPALS implementation, for the extraction of Principal Components 
-    according to the PCA methodology (Put a ref) . For its use, it only requires the data matrix which can come
-    in the form of a pandas dataframe or numpy matrix, but it will also receive the number of components 
-    one wants to extract on the principal_components argument.
-    PreProcessing must be done by user before PCA method call, that allows for different strategies to
-    be used based on user experience. 
-    Tolerance refers to the convergence criterion which is the norm of the difference vector 
-    between scores before and after one loop, and loopLimit is the maximum acceptable 
-    number of loops to extract a component. 
-    The fit method extracts the loadings of the PCA model and saves them into a property.
-    
-    Additionaly, the class has methods that return the:
-
-    -SPEs 
-    -T2s 
-    -Contributions to scores and SPEs
-    -VIPs
-    
-    Which can be used for actual multivariate statistical process control
-    Author: Daniel de Araujo Costa Rodrigues - Ulaval PhD Student 2019-11-22
-"""
-
 
 class PCA:
+    """
+    A sklearn-like class for the NIPALs algorithm for PCA together with a toolset for 
+    investigation.
+    
+    Parameters
+    ---------- 
+    tol : float, Optional
+        Value used to decide if model has converged.
+    loop_limit : int, Optional
+        Maximum number of loops before forced stop. Resets every new component.
+    missing_values_method : str, Optional
+        Defines which method will be used to evaluate missing values in future transformations.
+    keep_scores : boolean, Optional
+        Decision to save scores extracted during model fitting. If not given, assumed False.
 
-    def __init__( self, principal_components = None, cv_splits_number = 7, tol = 1e-12, loop_limit = 100, missing_values_method = 'TSM' ):
-        
-        self.loadings = None #loadings       
-        self.principal_components = principal_components # number of principal components to be extracted
-        self.cv_splits_number = cv_splits_number # number of splits for latent variable cross-validation
+    Attributes
+    ----------
+    principal_components : int, optional
+        Number of principal components extracted or to extract. If not given, a cross-validation
+        internal routine will decide this value.
+    cv_splits_number : int, optional
+        Number of splits used for cross-validation. If not given, it will be 7.
+    loadings : array_like
+        Loading parameters that define the PCA model.
+    q2 : [float]
+        Average score on the test sets during the cross-validation procedure
+    feature_importances_ : array_like
+        An array that describes the importance of each feature used to build the model
+        using the VIP value of each.
+    scores_train : array_like
+        If keep_scores was set to True, holds the scores extracted during training of the model.
+        Else, it will be None.
+    omega : array_like
+        If missing_values_method requires a scores covariance matrix ('TSR', 'CMR', 'PMP'), 
+        it will be stored here.
+
+    Methods
+    -------
+    fit(X, principal_components = None, cv_splits_number = 7, int_call = False)
+        Runs the NIPALS algorithm to extract the principal components from X. 
+    predict(X, principal_components = None)
+        Uses the model to reconstruct X using the principal components.
+    transform(X, principal_components = None)
+        Transforms the X from its original space to the latent variable space.
+    score(X, principal_components = None)
+        Returns a r² representing how much variability from X is captured in the model. 
+    Hotellings_T2(X, principal_components = None)
+        Returns an array with the Hotelling's T² calculated for each row in X.
+    contributions_scores_ind(X, principal_components = None)
+        Returns an array with the contributions to the scores of each X row.
+    contributions_spe(X, principal_components = None)
+        Returns an array with the contributions to the SPE of each X row.
+    SPEs(X, principal_components = None)
+        Returns the squared prediction errors of each row's X reconstruction.
+    """
+
+    def __init__( self, tol = 1e-12, loop_limit = 100, missing_values_method = 'TSM', keep_scores = False, ):
+           
+        self.principal_components = None # number of principal components to be extracted
+        self.cv_splits_number = None # number of splits for latent variable cross-validation
         self.tol = tol # criteria for convergence
         self.loop_limit = loop_limit # maximum number of loops before convergence is decided to be not attainable
+        self.missing_values_method = missing_values_method 
+
+        self.loadings = None #loadings 
         self.q2 = [] # list of cross validation scores
         self.feature_importances_ = None #for scikit learn use with feature selection methods
         self.omega = None # scores covariance matrix for missing values score estimation
-        self.all_loadings = None
-        self.missing_values_method = missing_values_method
-        self._coef = None
-
         
-    def fit( self, X, Y = None, int_call = False ):
+    def fit( self, X, principal_components = None, cv_splits_number = 7, int_call = False ):
+        """
+        Extracts the model parameters using the NIPALs algorithm [1].
+
+        Parameters
+        ----------
+        X : array_like
+            Data used to extract the parameters and fit the model
+        principal_components : array_like, Optional
+            Number of desired principal components to be extracted
+        cv_splits_number : int, Optional
+            Number of desired splits to be used during the cross-validation routine        
+        int_call : Boolean, optional
+            Flag to determine if the method should calculate certain values. If not specified
+            
+        References 
+        [1] S. Wold, K. Esbensen, and P. Geladi, “Principal component analysis,” 
+            Chemometrics and Intelligent Laboratory Systems, vol. 2, no. 1–3, 
+            pp. 37–52, Aug. 1987, doi: 10.1016/0169-7439(87)80084-9.
+
+        """
+
+        self.principal_components = principal_components # number of principal components to be extracted
+        self.cv_splits_number = cv_splits_number # number of splits for latent variable cross-validation
+
 
         if isinstance( X, DataFrame ) : X = X.to_numpy() #ensuring data in the numpy format
         dataset_incomplete = False 
@@ -101,9 +151,9 @@ class PCA:
                 
                 for train_index, test_index in kf.split( X ):
 
-                    q2_model = PCA( principal_components = latent_variable, missing_values_method = self.missing_values_method )
-                    q2_model.fit( X[ train_index ], int_call = True )
-                    testq2.append( q2_model.score( X[ test_index ], X[ test_index ] ) )
+                    q2_model = PCA(missing_values_method = self.missing_values_method )
+                    q2_model.fit( X[ train_index ], principal_components = latent_variable, int_call = True )
+                    testq2.append( q2_model.score( X[ test_index ] ) )
 
                 q2_final.append( mean( testq2 ) )
                 
@@ -134,12 +184,29 @@ class PCA:
              
 
         if not int_call : 
-            self.feature_importances_ = self.VIPs_calc( X,  principal_components = self.principal_components )
+            self.feature_importances_ = self._VIPs_calc( X,  principal_components = self.principal_components )
             self.omega = self.training_scores.T @ self.training_scores # calculation of the covariance matrix
 
         pass
         
-    def predict( self, X, principal_components = None ):
+    def predict(self, X, principal_components = None):
+
+        """
+        Transforms the X sample to the principal component space and back to evaluate what is
+        the model "prediction" of the original sample values.
+
+        Parameters
+        ----------
+        X : array_like
+            Data used to extract the parameters and fit the model
+        principal_components : array_like, Optional
+            Number of desired principal components to be used
+        
+        Returns
+        -------
+        preds : array_like 
+            returns "predicted" X values.        
+        """
 
         if isinstance( X, DataFrame ) : X = X.to_numpy()
         if principal_components == None : principal_components = self.principal_components
@@ -150,6 +217,24 @@ class PCA:
     
     def transform( self, X, principal_components = None ): 
         
+        """
+
+        Transforms the X sample to the principal component space .
+
+        Parameters
+        ----------
+        X : array_like
+            Data used to extract the parameters and fit the model
+        principal_components : array_like, Optional
+            Number of desired principal components to be used
+        
+        Returns
+        -------
+        result : array_like 
+            returns X samples' scores.  
+
+        """
+
         if isinstance( X, DataFrame ) : X = X.to_numpy()            
         if principal_components == None : principal_components = self.principal_components
         
@@ -176,16 +261,53 @@ class PCA:
         
         return result
     
-    def score( self, X, Y = None ): #return r²
+    def score( self, X, principal_components = None ): #return r²
         
+        """
+        
+        Returns the coefficient of determination R^2 of the model.
+
+        R² is defined as 1 - Variance(Error) / Variance(X) with Error = X - predictions(X)
+
+        Parameters
+        ----------
+        X : array_like
+            Data used to extract the parameters and fit the model
+        principal_components : array_like, Optional
+            Number of desired principal components to be used
+        
+        Returns
+        -------
+        result : array_like 
+            returns calculated r².        
+        
+        """
+
         if isinstance( X, DataFrame ) : X = X.to_numpy()
         
         Y = X
-        ErrorQ2 = Y - self.predict( X  )
-        return 1 - nanvar( ErrorQ2 ) / nanvar( X )
+        ErrorQ2 = Y - self.predict(X, principal_components = principal_components)
+        result = 1 - nanvar( ErrorQ2 ) / nanvar( X )
+        return result
 
     def Hotellings_T2( self, X, principal_components = None ):
         
+        """
+        Calculates the Hotelling's T² for the X samples.
+
+        Parameters
+        ----------
+        X : array_like
+            Samples Matrix
+        principal_components : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        T2s : array_like 
+            returns all calculated T²s for the X samples
+        """
+
         if isinstance( X, DataFrame ) : X = X.to_numpy()
             
         if principal_components == None : principal_components = self.principal_components # Unless specified, the number of PCs is the one in the trained model 
@@ -195,7 +317,7 @@ class PCA:
         T2s = sum( scores_matrix / std( scores_matrix, axis = 0 ) ** 2 , axis = 1 )
         return T2s
     
-    def VIPs_calc( self, X, principal_components = None, confidence_intervals = False ):
+    def _VIPs_calc( self, X, principal_components = None, confidence_intervals = False ):
         
         if principal_components == None : principal_components = self.principal_components
               
@@ -214,10 +336,26 @@ class PCA:
                           self.loadings.shape[ 1 ] / ( SSX[ 0 ] - SSX[ len( SSX ) - 1 ] ) ) ** 1 / 2 , ndmin = 2)                
         return VIPs
     
-    
-
     def contributions_scores_ind( self, X, principal_components = None) : #contribution of each individual point in X1
+        
+        """
+        calculates the sample individual contributions to the scores.
+
+        Parameters
+        ----------
+        X : array_like
+            Sample matrix 
+        principal_components : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        contributions : array_like 
+            matrix of scores contributions for every X sample
+        """
+
         if principal_components == None : principal_components = self.principal_components
+
         if isinstance( X, DataFrame ) : X = X.to_numpy()
         
         scores = self.transform( X, principal_components = principal_components )
@@ -225,10 +363,26 @@ class PCA:
         contributions = multiply( X, ( scores @ self.loadings[ :principal_components, : ] ** 2 ) ** 1 / 2  ) 
 
         return contributions
- 
-    
-        
+       
     def contributions_spe( self, X, principal_components = None ) :
+        
+        """
+        calculates the individual sample individual contributions to the squared prediction error 
+        of the X variables matrix reconstruction.
+
+        Parameters
+        ----------
+        X : array_like
+            Sample matrix 
+        principal_components : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        SPE_contributions : array_like 
+            matrix of SPE contributions for every X sample
+        """
+        
         if principal_components == None : principal_components = self.principal_components
         if isinstance( X, DataFrame ) : X = X.to_numpy()
 
@@ -237,8 +391,24 @@ class PCA:
         
         return SPE_contributions   
 
-
     def SPEs( self, X, principal_components = None ) :
+        
+        """
+        Calculates the Squared prediction error for for the X matrix rebuild.
+
+        Parameters
+        ----------
+        X : array_like
+            Samples Matrix
+        principal_components : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        SPE : array_like 
+            returns all calculated SPEs for the X samples
+        """
+        
         if principal_components == None : principal_components = self.principal_components
         if isinstance( X, DataFrame ) : X = X.to_numpy()
 
