@@ -104,9 +104,9 @@ class PLS:
 
         References 
         ----------
-        [1] S. Wold, K. Esbensen, and P. Geladi, “Principal component analysis,” 
-            Chemometrics and Intelligent Laboratory Systems, vol. 2, no. 1–3, 
-            pp. 37–52, Aug. 1987, doi: 10.1016/0169-7439(87)80084-9.
+        [1] S. Wold, M. Sjöström, and L. Eriksson, “PLS-regression: a basic tool of chemometrics,” 
+        Chemom. Intell. Lab. Syst., vol. 58, no. 2, pp. 109–130, Oct. 2001, doi: 10.1016/S0169-7439(01)00155-1.
+
 
         """
 
@@ -505,7 +505,7 @@ class PLS:
     def contributions_scores_ind( self, X, latent_variables = None ): #contribution of each individual point in X1
 
         """
-        calculates the individual sample individual contributions to the scores.
+        calculates the sample individual contributions to the scores.
 
         Parameters
         ----------
