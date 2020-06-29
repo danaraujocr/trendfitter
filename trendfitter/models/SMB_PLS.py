@@ -4,21 +4,6 @@ from sklearn.model_selection import KFold
 from pandas import DataFrame, Series
 from trendfitter.auxiliary.tf_aux import scores_with_missing_values
 
-""" The way this function will work is:
-    As it is a multi-block PLS algorithm, the X's should be given in a list where every block is an element. These elements
-    may be both pandas Dataframes or numpy arrays. The algorithm will handle the pandas Dataframes to rebuild them at the 
-    return part so that the columns and row have their identities preserved.
-    
-    The model is a class and should be initialized as an object. It will hold the blocks' weights in a list in the 
-    same order as the X's given as input in the fit function. It will also hold the superlevel's parameters. 
-    If X's are dataframes, model parameters will be too.
-    
-    If the user wishes to define the amount of latent variables, he may by giving one number that will be used equally in all
-    blocks or a list of the same size of the X list with a value for every block and in the same order as X.
-    
-    The implementation of its functions will be according to: 2018, Lauzon-Gauthier 
-    "The Sequential Multi-lock PLS Algorithm (SMB-PLS): Comparison of performance and interpretability". """
-    
 class SMB_PLS:
     """
     A sklearn-like class for the Sequential Multi-Block Projection to Latent Structures.
@@ -214,10 +199,10 @@ class SMB_PLS:
                 #------------------------------------deflation----------------------------
 
                 if deflation == 'both' :
-                    X -= result['tT'] @ result['p'].T
-                    Y -= result['tT'] @ result['c'].T
+                    X -= result['tT'] @ result['p']
+                    Y -= result['tT'] @ result['c']
                 elif deflation == 'Y':
-                    Y -= result['tT'] @ result['c'].T
+                    Y -= result['tT'] @ result['c']
                 else : raise Exception(f'Deflation method "{deflation}" non-existing.')
                     
                 #--------------------------Property assignment section--------------------
@@ -230,17 +215,17 @@ class SMB_PLS:
                     self.c_loadings = result['c']
                 
                 else:                    
-                    self.superlevel_weights = append(self.superlevel_weights, result['wT'], axis = 1)
-                    self.x_weights = append(self.x_weights, result['w'], axis = 1)
-                    self.block_weights = append(self.block_weights, result['wb'], axis = 1)
-                    self.block_p_loadings = append(self.block_p_loadings, result['pb'], axis = 1)
-                    self.superlevel_p_loadings = append(self.superlevel_p_loadings, result['p'], axis = 1)
+                    self.superlevel_weights = append(self.superlevel_weights, result['wT'], axis = 0)
+                    self.x_weights = append(self.x_weights, result['w'], axis = 0)
+                    self.block_weights = append(self.block_weights, result['wb'], axis = 0)
+                    self.block_p_loadings = append(self.block_p_loadings, result['pb'], axis = 0)
+                    self.superlevel_p_loadings = append(self.superlevel_p_loadings, result['p'], axis = 0)
                     self.c_loadings = append(self.c_loadings, result['c'], axis = 0)
                 
                 
-                #elif self.latent_variables[block] ==
+
         
-        self.x_weights_star = (self.x_weights @ pinv(self.superlevel_p_loadings.T @ self.x_weights)).T
+        self.x_weights_star = (self.x_weights @ pinv(self.superlevel_p_loadings.T @ self.x_weights))
 
         return
 
@@ -293,7 +278,7 @@ class SMB_PLS:
                     result[ rows_indexes, : ] = scores_with_missing_values( self.omega, self.x_weights_star[ : , ~row_mask ], X[ rows_indexes[ 0 ][ :, None ], ~row_mask], 
                                                                             LVs = latent_variables, method = self.missing_values_method )
                     
-        else : result = X @ self.x_weights_star[ :latent_variables, : ].T 
+        else : result = X @ self.x_weights_star[ :latent_variables, : ].T
 
         # TO DO : check if X makes sense with latent variables
         return result
@@ -598,15 +583,15 @@ class SMB_PLS:
             else : 
                 block_p_loadings = append(block_p_loadings, self._p_loadings(X[:, start:end], scores, missing), axis = 0)
 
-        result_dict = {'wb':block_weights,
-                       'w':x_weights,
-                       'pb':block_p_loadings,
+        result_dict = {'wb':block_weights.T,
+                       'w':x_weights.T,
+                       'pb':block_p_loadings.T,
                        'tb':T_scores,
-                       'wT':superlevel_weights,
-                       'p':superlevel_p_loadings,
+                       'wT':superlevel_weights.T,
+                       'p':superlevel_p_loadings.T,
                        'tT':superlevel_scores,
                        'u':y_scores,
-                       'c':c_loadings}
+                       'c':c_loadings.T}
 
         return result_dict
     
