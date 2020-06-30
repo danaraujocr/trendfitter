@@ -35,7 +35,7 @@ class PCA:
     feature_importances_ : array_like
         An array that describes the importance of each feature used to build the model
         using the VIP value of each.
-    scores_train : array_like
+    training_scores : array_like
         If keep_scores was set to True, holds the scores extracted during training of the model.
         Else, it will be None.
     omega : array_like
@@ -62,7 +62,7 @@ class PCA:
         Returns the squared prediction errors of each row's X reconstruction.
     """
 
-    def __init__( self, tol = 1e-12, loop_limit = 100, missing_values_method = 'TSM', keep_scores = False, ):
+    def __init__( self, tol = 1e-12, loop_limit = 100, missing_values_method = 'TSM' ):
            
         self.principal_components = None # number of principal components to be extracted
         self.cv_splits_number = None # number of splits for latent variable cross-validation
@@ -74,7 +74,7 @@ class PCA:
         self.q2 = [] # list of cross validation scores
         self.feature_importances_ = None #for scikit learn use with feature selection methods
         self.omega = None # scores covariance matrix for missing values score estimation
-        
+        self.training_scores = None
     def fit( self, X, principal_components = None, cv_splits_number = 7, int_call = False ):
         """
         Extracts the model parameters using the NIPALs algorithm [1].
@@ -184,7 +184,7 @@ class PCA:
              
 
         if not int_call : 
-            self.feature_importances_ = self._VIPs_calc( X,  principal_components = self.principal_components )
+            self.feature_importances_ = self._VIPs_calc(X,  principal_components = self.principal_components)
             self.omega = self.training_scores.T @ self.training_scores # calculation of the covariance matrix
 
         pass
