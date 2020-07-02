@@ -1,5 +1,6 @@
 from numpy import min, sum, mean, std, var, insert, array, multiply, where, zeros, append, isnan, nan_to_num, nansum, nanvar, nanmean, unique, ix_, nonzero, nan
 from numpy.linalg import norm
+from scipy.stats import f, chi2
 from pandas import DataFrame
 from sklearn.model_selection import KFold
 from trendfitter.auxiliary.tf_aux import scores_with_missing_values
@@ -41,6 +42,8 @@ class PCA:
     omega : array_like
         If missing_values_method requires a scores covariance matrix ('TSR', 'CMR', 'PMP'), 
         it will be stored here.
+    chi2_params : [float]
+        Extracted PCs SPE chi2 parameters for SPE Limit calculations
 
     Methods
     -------
@@ -54,12 +57,16 @@ class PCA:
         Returns a r² representing how much variability from X is captured in the model. 
     Hotellings_T2(X, principal_components = None)
         Returns an array with the Hotelling's T² calculated for each row in X.
+    T2_limit(alpha)
+        Returns the Hotelling's T² limit estimated with alpha confidence level
     contributions_scores_ind(X, principal_components = None)
         Returns an array with the contributions to the scores of each X row.
     contributions_spe(X, principal_components = None)
         Returns an array with the contributions to the SPE of each X row.
     SPEs(X, principal_components = None)
         Returns the squared prediction errors of each row's X reconstruction.
+    SPE_limit(alpha)
+        Returns the squared prediction error limit with alpha confidence level
     """
 
     def __init__( self, tol = 1e-12, loop_limit = 100, missing_values_method = 'TSM' ):
@@ -75,6 +82,8 @@ class PCA:
         self.feature_importances_ = None #for scikit learn use with feature selection methods
         self.omega = None # scores covariance matrix for missing values score estimation
         self.training_scores = None
+        self._chi2_params = []
+
     def fit( self, X, principal_components = None, cv_splits_number = 7, int_call = False ):
         """
         Extracts the model parameters using the NIPALs algorithm [1].
@@ -167,11 +176,15 @@ class PCA:
                         if self.missing_values_method != 'TSM' : break 
                         
             #if significant, then we add them to the loadings and score matrixes that will be returned as method result
+
+            #prediction of this model
+            
+
             if latent_variable < 2 :
 
                 self.loadings = loadings_vec
                 self.training_scores = scores_vec
-
+                
             else:
 
                 self.loadings = insert( self.loadings, self.loadings.shape[0], loadings_vec, axis = 0 )
@@ -179,8 +192,10 @@ class PCA:
 
             if self. principal_components != None and latent_variable > 2*self.principal_components: break # Ensuring to extract at least double the useful components for missing values estimation:
 
-            #prediction of this model
             MatrixXModel = self.training_scores @ self.loadings 
+            error = nan_to_num(X) - MatrixXModel
+            SPE = sum( error ** 2 , axis = 1 )
+            self._chi2_params.append((2 * mean(SPE) ** 2) / var(SPE)) #for future SPE analysis
              
 
         if not int_call : 
@@ -317,6 +332,32 @@ class PCA:
         T2s = sum( scores_matrix / std( scores_matrix, axis = 0 ) ** 2 , axis = 1 )
         return T2s
     
+    def T2_limit(self, alpha, principal_components = None):
+        
+        """
+        Calculates the Hotelling's T² limit based on the training dataset.
+
+        Parameters
+        ----------
+        alpha : array_like
+            value ranging from 0-1 to represent the % confidence limit
+        principal_components : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        t2_limit : array_like 
+            returns the limit T² for the alpha based on the training dataset
+        """
+
+        if principal_components == None : principal_components = self.principal_components # Unless specified, the number of PCs is the one in the trained model 
+
+        t2_limit = ((principal_components * (self.training_scores.shape[0] ** 2 - 1)) / 
+                    (self.training_scores.shape[0] * (self.training_scores.shape[0] - principal_components))) * \
+                    f.isf(principal_components ,self.training_scores.shape[0], alpha)
+
+        return t2_limit
+    
     def _VIPs_calc( self, X, principal_components = None, confidence_intervals = False ):
         
         if principal_components == None : principal_components = self.principal_components
@@ -416,3 +457,27 @@ class PCA:
         SPE = sum( error ** 2 , axis = 1 )
         
         return SPE
+
+    def SPE_limit(self, alpha, principal_components = None):
+
+        """
+        Calculates the SPE limit based on the training dataset.
+
+        Parameters
+        ----------
+        alpha : array_like
+            value ranging from 0-1 to represent the % confidence limit
+        principal_components : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        SPE_limit : array_like 
+            returns the limit SPE for the alpha based on the training dataset
+        """
+
+        if principal_components == None : principal_components = self.principal_components # Unless specified, the number of PCs is the one in the trained model 
+        
+        SPE_limit = self._chi2_params[principal_components - 1] * chi2.isf(principal_components - 1, alpha)
+        
+        return SPE_limit
