@@ -196,7 +196,6 @@ class PCA:
             error = nan_to_num(X) - MatrixXModel
             SPE = sum( error ** 2 , axis = 1 )
             self._chi2_params.append((2 * mean(SPE) ** 2) / var(SPE)) #for future SPE analysis
-             
 
         if not int_call : 
             self.feature_importances_ = self._VIPs_calc(X,  principal_components = self.principal_components)
