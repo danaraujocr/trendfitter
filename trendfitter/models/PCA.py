@@ -26,7 +26,7 @@ class PCA:
     ----------
     principal_components : int, optional
         Number of principal components extracted or to extract. If not given, a cross-validation
-        internal routine will decide this value.
+            internal routine will decide this value.
     cv_splits_number : int, optional
         Number of splits used for cross-validation. If not given, it will be 7.
     loadings : array_like
@@ -35,15 +35,13 @@ class PCA:
         Average score on the test sets during the cross-validation procedure
     feature_importances_ : array_like
         An array that describes the importance of each feature used to build the model
-        using the VIP value of each.
+            using the VIP value of each.
     training_scores : array_like
         If keep_scores was set to True, holds the scores extracted during training of the model.
-        Else, it will be None.
+            Else, it will be None.
     omega : array_like
         If missing_values_method requires a scores covariance matrix ('TSR', 'CMR', 'PMP'), 
-        it will be stored here.
-    chi2_params : [float]
-        Extracted PCs SPE chi2 parameters for SPE Limit calculations
+            it will be stored here.
 
     Methods
     -------
@@ -115,7 +113,7 @@ class PCA:
         if isnan( sum( X ) ): dataset_incomplete = True #checking if there is missing data on the input X
 
         #CV = False
-        if self.principal_components != None : 
+        if not(self.principal_components is None) : 
             numberOfLVs = self.principal_components 
             #CV = True
         else :
@@ -128,8 +126,8 @@ class PCA:
         #------------------------------NIPALS implementation-------------------------------
         #----------------------------------------------------------------------------------
         q2_final = []
-        for latent_variable in range( 1, numberOfLVs + 1 ) :
-            scores_vec = nan_to_num( array( X[ :, 1 ], ndmin = 2 ).T ) #initializing the guess by using a specific vector
+        for latent_variable in range(1, numberOfLVs + 1) :
+            scores_vec = nan_to_num(array(X[ :, 1], ndmin = 2).T) #initializing the guess by using a specific vector
             MatrixX2 = X - MatrixXModel #deflation of the X matrix
             counter = 0
             conv = 1
@@ -154,15 +152,15 @@ class PCA:
             #After convergency, if the principal components desired quantity is undefined
             #then we check if the Component is in fact significant and keep on until all 
             #components are there            
-            if self.principal_components == None :
+            if self.principal_components is None :
                 
                 testq2 = []
                 
                 for train_index, test_index in kf.split( X ):
 
-                    q2_model = PCA(missing_values_method = self.missing_values_method )
-                    q2_model.fit( X[ train_index ], principal_components = latent_variable, int_call = True )
-                    testq2.append( q2_model.score( X[ test_index ] ) )
+                    q2_model = PCA(missing_values_method = self.missing_values_method)
+                    q2_model.fit(X[train_index], principal_components = latent_variable, int_call = True)
+                    testq2.append(q2_model.score(X[test_index]))
 
                 q2_final.append( mean( testq2 ) )
                 
@@ -187,17 +185,17 @@ class PCA:
                 
             else:
 
-                self.loadings = insert( self.loadings, self.loadings.shape[0], loadings_vec, axis = 0 )
-                self.training_scores = insert( self.training_scores, self.training_scores.shape[1], scores_vec.T, axis = 1 )
+                self.loadings = insert(self.loadings, self.loadings.shape[0], loadings_vec, axis = 0)
+                self.training_scores = insert(self.training_scores, self.training_scores.shape[1], scores_vec.T, axis = 1)
 
-            if self. principal_components != None and latent_variable > 2*self.principal_components: break # Ensuring to extract at least double the useful components for missing values estimation:
+            if not (self.principal_components) is None and latent_variable > 2 * self.principal_components: break # Ensuring to extract at least double the useful components for missing values estimation:
 
             MatrixXModel = self.training_scores @ self.loadings 
             error = nan_to_num(X) - MatrixXModel
             SPE = sum( error ** 2 , axis = 1 )
             self._chi2_params.append((2 * mean(SPE) ** 2) / var(SPE)) #for future SPE analysis
 
-        if not int_call : 
+        if not int_call: 
             self.feature_importances_ = self._VIPs_calc(X,  principal_components = self.principal_components)
             self.omega = self.training_scores.T @ self.training_scores # calculation of the covariance matrix
 
@@ -351,29 +349,31 @@ class PCA:
 
         if principal_components == None : principal_components = self.principal_components # Unless specified, the number of PCs is the one in the trained model 
 
+        F_value = f.isf(1 - alpha , principal_components, self.training_scores.shape[0])
         t2_limit = ((principal_components * (self.training_scores.shape[0] ** 2 - 1)) / 
                     (self.training_scores.shape[0] * (self.training_scores.shape[0] - principal_components))) * \
-                    f.isf(principal_components ,self.training_scores.shape[0], alpha)
+                    F_value
 
         return t2_limit
     
-    def _VIPs_calc( self, X, principal_components = None, confidence_intervals = False ):
+    def _VIPs_calc(self, X, principal_components = None, confidence_intervals = False):
         
-        if principal_components == None : principal_components = self.principal_components
+        if principal_components is None : principal_components = self.principal_components
               
-        if isinstance( X, DataFrame ) : X = X.to_numpy()
+        if isinstance(X, DataFrame) : X = X.to_numpy()
 
-        SSX = array( sum( ( nan_to_num(X) - nanmean( X, axis = 0 ) ) ** 2 ) )   
+        SSX = array(sum((nan_to_num(X) - nanmean(X, axis = 0) ) ** 2 ))   
+        
+        for i in range(1, principal_components + 1):
 
-        for i in range( 1, principal_components + 1 ) :
-
-            pred = self.predict( X, principal_components = i )
+            pred = self.predict(X, principal_components = i)
             res = nan_to_num(X) - pred
-            SSX = append( SSX, ( res - res.mean( axis = 0 ) ** 2 ).sum() )
+            SSX = append(SSX, (res - res.mean(axis = 0) ** 2).sum())
             
-        SSXdiff = SSX[ :-1 ] - array( SSX )[ 1: ]
-        VIPs = array( ( ( self.loadings[ :principal_components, : ].T ** 2 ) @  SSXdiff * 
-                          self.loadings.shape[ 1 ] / ( SSX[ 0 ] - SSX[ len( SSX ) - 1 ] ) ) ** 1 / 2 , ndmin = 2)                
+        SSXdiff = SSX[:-1] - array(SSX)[1:]
+
+        VIPs = array(((self.loadings[:principal_components, :].T ** 2) @ SSXdiff * 
+                          self.loadings.shape[1] / (SSX[0] - SSX[len(SSX) - 1])) ** 1 / 2 , ndmin = 2)                
         return VIPs
     
     def contributions_scores_ind( self, X, principal_components = None) : #contribution of each individual point in X1
@@ -477,6 +477,7 @@ class PCA:
 
         if principal_components == None : principal_components = self.principal_components # Unless specified, the number of PCs is the one in the trained model 
         
-        SPE_limit = self._chi2_params[principal_components - 1] * chi2.isf(principal_components - 1, alpha)
+        chi2_val = chi2.isf(1 - alpha, principal_components - 1)
+        SPE_limit = self._chi2_params[principal_components - 1] * chi2_val
         
         return SPE_limit
