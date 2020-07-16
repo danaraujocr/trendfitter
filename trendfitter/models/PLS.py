@@ -1,7 +1,8 @@
-from numpy import min, sum, mean, std, nanvar, insert, array, where, isnan, nan_to_num, nansum, nanmean, identity, zeros, unique
+from numpy import min, sum, mean, std, nanvar, insert, array, where, isnan, nan_to_num, nansum, nanmean, identity, zeros, unique, var, append, nansum, any
 from numpy.linalg import norm
 from pandas import DataFrame, Series
 from sklearn.model_selection import KFold
+from scipy.stats import f, chi2
 from trendfitter.auxiliary.tf_aux import scores_with_missing_values
 
 
@@ -39,6 +40,11 @@ class PLS:
         feature_importances_ : [float]
             list of values that represent how important is each variable in the same order 
                 of the X columns on the first matrix
+        omega : array_like
+            If missing_values_method requires a scores covariance matrix ('TSR', 'CMR', 'PMP'), 
+                it will be stored here.
+        training_scores : array_like
+            Scores extracted during training of the model.
 
         Methods
         -------
@@ -55,10 +61,16 @@ class PLS:
             calculates the r² value for Y
         Hotellings_T2(X)
             Calculates Hotellings_T2 values for the X data in the super level
+        T2_limit(alpha)
+            Returns the Hotelling's T² limit estimated with alpha confidence level
         SPEs_X(X)
-            Calculates squared prediction errors on the X side 
+            Calculates squared prediction errors on the X side
+        SPE_X_limit(alpha)
+            Returns the squared prediction error limit with alpha confidence level 
         SPEs_Y(X, Y)
             Calculates squared prediction errors for the predictions
+        SPE_Y_limit(alpha)
+            Returns the squared prediction error limit with alpha confidence level
         contributions_scores_ind(X)
             calculates the contributions of each variable to the scores on the super level
         contributions_SPE_X(X)
@@ -77,14 +89,16 @@ class PLS:
         self.loop_limit = loop_limit # maximum number of loops before convergence is decided to be not attainable
         self.q2y = [] # list of cross validation scores
         self.deflation = None
-        self.VIPs = None
         self.coefficients = None
-        self.scores = None
+        self.training_scores = None
         self.omega = None
         self.missing_values_method = missing_values_method
         self.feature_importances_ = None #for scikit learn use with feature selection methods
+        self._x_chi2_params = []
+        self._y_chi2_params = []
         
-    def fit(self, X, Y, latent_variables = None, deflation = 'both', random_state = None):
+        
+    def fit(self, X, Y, latent_variables = None, deflation = 'both', random_state = None, int_call = False):
 
         """
         Adjusts the model parameters to best fit the Y using the algorithm defined in 
@@ -195,10 +209,9 @@ class PLS:
                 testq2 = []
                 
 
-                q2_model = PLS(latent_variables = latent_variable, tol = self.tol, deflation = self.deflation, loop_limit = self.loop_limit
-                                , missing_values_method = 'TSM') # an internal model is initialized
+                q2_model = PLS(tol = self.tol, loop_limit = self.loop_limit, missing_values_method = 'TSM') # an internal model is initialized
                 for train_index, test_index in kf.split(X):
-                    q2_model.fit(Orig_X[train_index, :], Orig_Y[train_index, :]) # this model is trained with only a partition of the total dataset
+                    q2_model.fit(Orig_X[train_index, :], Orig_Y[train_index, :], latent_variables = latent_variable, deflation = self.deflation, int_call = True) # this model is trained with only a partition of the total dataset
                     testq2.append(q2_model.score(Orig_X[test_index, :], Orig_Y[test_index, :])) # its performance is registered in a list
                 q2_final.append(mean(testq2))
                 """ ------------------ coefficients and VIP calculations ----------------- """
@@ -218,21 +231,29 @@ class PLS:
                 
             else: # if it isn't without problematic data, then one needs to deal with it
                 p_loadings = array(sum(nan_to_num(X) * x_scores, axis = 0) / sum((~isnan(X) * x_scores) ** 2, axis = 0), ndmin = 2)
-                
 
-            
             """-------------------------------- deflation section -----------------------------------------"""
             if self.deflation == 'both':                
 
                 X = X - x_scores @ p_loadings
-                Y = Y - x_scores @ c_loadings 
+                Y = Y - x_scores @ c_loadings
+
+                SPE_X = sum( X[~(any(isnan(X), axis = 1))] ** 2 , axis = 1 )
+                SPE_Y = sum( Y[~(any(isnan(Y), axis = 1))] ** 2 , axis = 1 )
+                self._x_chi2_params.append((2 * mean(SPE_X) ** 2) / var(SPE_X)) #for future SPE analysis
+                self._y_chi2_params.append((2 * mean(SPE_Y) ** 2) / var(SPE_Y)) #for future SPE analysis
                 
             elif self.deflation == 'Y':
 
-                Y = Y - x_scores.T @ c_loadings.T
+                SPE_Y = sum( Y[~(any(isnan(Y), axis = 1))] ** 2 , axis = 1 )
                 
+                SPE_Y = sum( Y ** 2 , axis = 1 )
+                self._y_chi2_params.append((2 * mean(SPE_Y) ** 2) / var(SPE_Y)) #for future SPE analysis
+
             else :
                 raise ValueError("impossible deflation parameter")
+            
+            
             
             """-------------------------------- class property assignment section -------------------------"""
             if latent_variable < 2:
@@ -241,7 +262,7 @@ class PLS:
                 self.c_loadings = c_loadings
                 self.weights_star = weights
                 G = G - weights.T @ p_loadings 
-                self.scores = array(x_scores, ndmin = 2)
+                self.training_scores = array(x_scores, ndmin = 2)
             else:
                 weights_star = array(G @ weights.T , ndmin = 2).T
                 G = G - weights_star.T @ p_loadings 
@@ -249,8 +270,8 @@ class PLS:
                 self.p_loadings = insert(self.p_loadings, self.p_loadings.shape[0], p_loadings, axis = 0)
                 self.weights = insert(self.weights, self.weights.shape[0], weights, axis = 0)
                 self.c_loadings = insert(self.c_loadings, self.c_loadings.shape[0], c_loadings, axis = 0)
-                self.scores = insert(self.scores, self.scores.shape[1], array( x_scores, ndmin = 2).T, axis = 1)
-            self.omega = self.scores.T @ self.scores 
+                self.training_scores = insert(self.training_scores, self.training_scores.shape[1], array( x_scores, ndmin = 2).T, axis = 1)
+            self.omega = self.training_scores.T @ self.training_scores 
 
             """-------------------------------- Coefficients property calculations ----------------"""
            
@@ -260,11 +281,11 @@ class PLS:
             
             if self.latent_variables != None and latent_variable > 2 * self.latent_variables: break
         #VIP calculation
-        self.feature_importances_ = self._VIPs_calc(Orig_X,Orig_Y)
+        if not int_call: self.feature_importances_ = self._VIPs_calc(Orig_X,Orig_Y)
 
         return
         
-    def transform( self, X, latent_variables = None) :
+    def transform(self, X, latent_variables = None) :
 
         """
         Transforms the X matrix to the model-fitted space.
@@ -309,7 +330,7 @@ class PLS:
 
         return result
     
-    def transform_inv( self, scores, latent_variables = None) :
+    def transform_inv(self, scores, latent_variables = None) :
 
         """
         Transforms the scores matrix to the original X.
@@ -328,7 +349,7 @@ class PLS:
         """
                   
         if latent_variables == None : latent_variables = self.latent_variables
-        result = scores @ self.weights_star[ :latent_variables, : ] 
+        result = scores @ self.weights_star[:latent_variables, :] 
         
         return result
     
@@ -350,9 +371,9 @@ class PLS:
             returns predictions
         """
 
-        if isinstance( X, DataFrame ) : X = X.to_numpy()        
-        if latent_variables == None : latent_variables = self.latent_variables        
-        preds = self.transform(X, latent_variables = latent_variables ) @ self.c_loadings[ :latent_variables, : ] 
+        if isinstance( X, DataFrame ): X = X.to_numpy()        
+        if latent_variables == None: latent_variables = self.latent_variables        
+        preds = self.transform(X, latent_variables = latent_variables) @ self.c_loadings[:latent_variables, :] 
         
         return preds
     
@@ -415,6 +436,33 @@ class PLS:
         
         return T2s
     
+    def T2_limit(self, alpha, latent_variables = None):
+        
+        """
+        Calculates the Hotelling's T² limit based on the training dataset.
+
+        Parameters
+        ----------
+        alpha : array_like
+            value ranging from 0-1 to represent the % confidence limit
+        principal_components : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        t2_limit : array_like 
+            returns the limit T² for the alpha based on the training dataset
+        """
+
+        if latent_variables == None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+
+        F_value = f.isf(1 - alpha , latent_variables, self.training_scores.shape[0])
+        t2_limit = ((latent_variables * (self.training_scores.shape[0] ** 2 - 1)) / 
+                    (self.training_scores.shape[0] * (self.training_scores.shape[0] - latent_variables))) * \
+                    F_value
+
+        return t2_limit
+
     def SPEs_X( self, X, latent_variables = None ):
 
         """
@@ -435,13 +483,38 @@ class PLS:
         
         if latent_variables == None : latent_variables = self.latent_variables
 
-        if isinstance(X, DataFrame) : X = X.to_numpy()
-        
+        if isinstance(X, DataFrame) : X = X.to_numpy()       
         
         error = X - self.transform_inv(self.transform(X))  
         SPE = nansum( error ** 2, axis = 1 )
         
         return SPE
+
+    def SPE_X_limit(self, alpha, latent_variables = None):
+
+        """
+        Calculates the SPE limit for the X rebuild based on the training dataset.
+
+        Parameters
+        ----------
+        alpha : array_like
+            value ranging from 0-1 to represent the % confidence limit
+        principal_components : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        SPE_limit : array_like 
+            returns the limit SPE for the alpha based on the training dataset
+        """
+        if self.deflation == 'Y' : raise ValueError("Impossible to extract X SPE limits with only Y deflation")
+
+        if latent_variables == None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        
+        chi2_val = chi2.isf(1 - alpha, latent_variables - 1)
+        SPE_limit = self._x_chi2_params[latent_variables - 1] * chi2_val
+        
+        return SPE_limit
 
     def SPEs_Y(self, X, Y, latent_variables = None) :
 
@@ -466,12 +539,41 @@ class PLS:
         if latent_variables == None : latent_variables = self.latent_variables
 
         if isinstance(X, DataFrame) : X = X.to_numpy()
+
+        if isinstance(Y, DataFrame) or isinstance(Y, Series) : 
+            Y = Y.to_numpy()
+            Y = array(Y, ndmin = 2)
         
         
         error = Y - self.predict(X, latent_variables = latent_variables)
         SPE = nansum( error ** 2, axis = 1 )
         
         return SPE
+    
+    def SPE_Y_limit(self, alpha, latent_variables = None):
+
+        """
+        Calculates the SPE limit for the X rebuild based on the training dataset.
+
+        Parameters
+        ----------
+        alpha : array_like
+            value ranging from 0-1 to represent the % confidence limit
+        principal_components : int, optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        SPE_limit : array_like 
+            returns the limit SPE for the alpha based on the training dataset
+        """
+
+        if latent_variables == None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        
+        chi2_val = chi2.isf(1 - alpha, latent_variables - 1)
+        SPE_limit = self._y_chi2_params[latent_variables - 1] * chi2_val
+        
+        return SPE_limit
     
     def RMSEE ( self, X, Y, latent_variables = None ):
 
@@ -504,7 +606,7 @@ class PLS:
         
         return RMSEE
       
-    def contributions_scores_ind( self, X, latent_variables = None ): #contribution of each individual point in X1
+    def contributions_scores_ind( self, X, latent_variables = None ): 
 
         """
         calculates the sample individual contributions to the scores.
@@ -559,19 +661,20 @@ class PLS:
                
         return SPE_contributions
 
-    def _VIPs_calc( self, X, Y ): # code for calculation of VIPs
+    def _VIPs_calc( self, X, Y, latent_variables = None ): 
 
         """
         Calculates the VIP scores for all the variables for the prediction
         """
+        if latent_variables is None : latent_variables = self.latent_variables
         
-        SSY = sum( ( Y - nanmean( Y, axis = 0 ) ) ** 2)
-        for i in range( 1, self.weights.shape[ 1 ] + 1 ):
-            pred = self.predict( X, latent_variables = i )
+        SSY = array(sum((Y - nanmean(Y, axis = 0)) ** 2))
+        for i in range(1, latent_variables + 1):
+            pred = self.predict(X, latent_variables = i)
             res = Y - pred
-            SSY.loc[ i ] = sum(( ( res - res.mean( axis = 0 ) ) ** 2))
+            SSY = append(SSY, sum(((res - res.mean(axis = 0)) ** 2)))
             
-        SSYdiff = SSY.iloc[ :-1 ]-SSY.iloc[ 1: ]
-        VIPs = ( ( ( self.weights ** 2) @ SSYdiff.values ) * self.weights.shape[1] / ( SSY[0] - SSY[-1] ) ** 1 / 2 )
+        SSYdiff = SSY[:-1] - SSY[1:]
+        VIPs = (((self.weights[:latent_variables, :].T ** 2) @ SSYdiff) * self.weights.shape[1] / (SSY[0] - SSY[-1]) ** 1 / 2)
        
         return VIPs
