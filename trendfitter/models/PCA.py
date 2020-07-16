@@ -37,8 +37,7 @@ class PCA:
         An array that describes the importance of each feature used to build the model
             using the VIP value of each.
     training_scores : array_like
-        If keep_scores was set to True, holds the scores extracted during training of the model.
-            Else, it will be None.
+        Scores extracted during training of the model.
     omega : array_like
         If missing_values_method requires a scores covariance matrix ('TSR', 'CMR', 'PMP'), 
             it will be stored here.
@@ -356,7 +355,7 @@ class PCA:
 
         return t2_limit
     
-    def _VIPs_calc(self, X, principal_components = None, confidence_intervals = False):
+    def _VIPs_calc(self, X, principal_components = None):
         
         if principal_components is None : principal_components = self.principal_components
               
