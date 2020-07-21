@@ -170,7 +170,7 @@ class PCA:
                         latent_variable > min( X.shape ) / 2 ):
                         self.q2 = q2_final[ :-1 ]
                         self.principal_components = latent_variable - 1
-                        if self.missing_values_method != 'TSM' : break 
+                        if self.missing_values_method == 'TSM' : break 
                         
             #if significant, then we add them to the loadings and score matrixes that will be returned as method result
 

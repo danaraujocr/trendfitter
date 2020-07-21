@@ -223,7 +223,7 @@ class PLS:
                         latent_variable > min(X.shape) / 2): # the amount of latent variables added is more than half the variables on X
                         self.q2y = q2_final[:-1]
                         self.latent_variables = latent_variable - 1 
-                        if self.missing_values_method != 'TSM' : break  #In case of TSM use there is no need of more components for missing value estimation
+                        if self.missing_values_method == 'TSM' : break  #In case of TSM use there is no need of more components for missing value estimation
                         
             """-------------------------------- p loadings calculation section ----------------------------"""                        
             if dataset_complete: # if the dataset is without problematic data, matrix implementation is possible and faster
