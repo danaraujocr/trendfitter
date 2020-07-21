@@ -81,7 +81,7 @@ class SMB_PLS:
                 the block level for all blocks
 
     """
-    def __init__( self, cv_splits_number = 7, tol = 1e-16, loop_limit = 1000, missing_values_method = 'TSM' ):
+    def __init__(self, cv_splits_number = 7, tol = 1e-16, loop_limit = 1000, missing_values_method = 'TSM'):
         
         # Parameters
         
@@ -100,12 +100,13 @@ class SMB_PLS:
         self.block_weights = None
         self.superlevel_weights = None
         self.x_weights_star = None
+        self.x_weights = None
         self.c_loadings = None 
         self.VIPs = None
         self.coefficients = None
-        self._omega = None # score covariance matrix for missing value estimation
+        self.omega = None # score covariance matrix for missing value estimation
             
-    def fit(self, X, block_divs, Y, latent_variables = None, deflation = 'both', int_call = False):
+    def fit(self, X, block_divs, Y, latent_variables = None, deflation = 'both', int_call = False, random_state = None):
         """
         Adjusts the model parameters to best fit the Y using the algorithm defined in 
             Lauzon-Gauthier et al's [1]
@@ -170,7 +171,7 @@ class SMB_PLS:
             
             
         """------------------- model Calculation -------------"""
-        q2_final = [0]
+        q2_final = []
         LV_valid = [0 for _ in block_divs]
         for block, LVs in enumerate(max_LVs):
 
@@ -181,20 +182,23 @@ class SMB_PLS:
                 result = self._SMBPLS_1LV(X, block_coord_pairs[block:], Y, missing_values_list, block)
 
                 #--------------------------cross-validation------------------------------
-                if (block != 0 or LV != 0) and self.latent_variables == None:
+                if (block != 0 or LV != 0) and self.latent_variables == None and not int_call:
 
                     LV_valid[block] = LV + 1
-                    q2_final.append(self._cross_validate(Orig_X, block_divs, Orig_Y, LV_valid))
+                    q2_final.append(self._cross_validate(Orig_X, block_divs, Orig_Y, LV_valid, random_state))
 
                     if (q2_final[-1] < q2_final[-2] or  # mean cross-validation performance of the model has decreased with the addition of another latent variable
                         q2_final[-1] - q2_final[-2] < 0.01 or  # mean cross-validation performance of the model has increased less than 1% with the addition of another latent variable
                         LV > (block_coord_pairs[block][1] - block_coord_pairs[block][0]) // 2): # the amount of latent variables added is more than half the variables on X
                         
-                        self.q2y = q2_final[:-1]
+                        q2_final = q2_final[:-1]
+                        self.q2y = q2_final
                         LV_valid[block] -= 1
                         if block == len(max_LVs) - 1 : self.latent_variables = LV_valid 
-                        if self.missing_values_method == 'TSM' : break  #In case of TSM use there is no need of more components for missing value estimation
-
+                        if self.missing_values_method == 'TSM': break  #In case of TSM use there is no need of more components for missing value estimation
+                elif not int_call :
+                    LV_valid[block] = LV + 1
+                    q2_final.append(self._cross_validate(Orig_X, block_divs, Orig_Y, LV_valid, random_state))
 
                 #------------------------------------deflation----------------------------
 
@@ -535,7 +539,7 @@ class SMB_PLS:
         loops = 0
 
         y_scores1 = nan_to_num( array( Y[ :,0 ], ndmin = 2 ).T ) #handling possible NaNs that come from faulty datasets - Step 1
-        superlevel_scores1 = y_scores1 #initializing superlevel scores vector
+        superlevel_scores1 = nan_to_num(y_scores1) #initializing superlevel scores vector
 
         while (conv > self.tol and loops < self.loop_limit) :
 
@@ -550,7 +554,7 @@ class SMB_PLS:
 
                 # calculating the block weights and scores for the blocks following the correlated parts of the following blocks
                 corr_block_weights, corr_T_scores =  self._correlated_part(array(T_scores[:, 0], ndmin = 2).T, X[:, start:end], y_scores1, missing)
-                block_weights = append(block_weights, corr_block_weights, axis = 0)
+                block_weights = append(block_weights, corr_block_weights, axis = 1)
                 T_scores = append(T_scores, corr_T_scores, axis = 1)
             
             # calculating the superlevel weights and scores
@@ -572,16 +576,16 @@ class SMB_PLS:
         for missing, scores, (start, end) in zip(missing_values, T_scores.T, block_coord_pairs) :
             
             if start == block_coord_pairs[0][0] : 
-                block_p_loadings = self._p_loadings(X[:, start:end], scores, missing)
+                block_p_loadings = self._p_loadings(X[:, start:end], array(scores, ndmin = 2).T, missing)
                 if start > 0:
-                    block_p_loadings = append(zeros((start, 1)), block_p_loadings, axis = 0 )
+                    block_p_loadings = append(zeros((1, start)), block_p_loadings, axis = 1 )
                     superlevel_p_loadings = append(zeros((start, 1)), superlevel_p_loadings, axis = 0 )
                     x_weights = append(zeros((start, 1)), x_weights, axis = 0 )
                     superlevel_weights = append(zeros((block, 1)), superlevel_weights, axis = 0 )
-                    block_weights = append(zeros((start, 1)), block_weights, axis = 0 )
+                    block_weights = append(zeros((1, start)), block_weights, axis = 1 )
 
             else : 
-                block_p_loadings = append(block_p_loadings, self._p_loadings(X[:, start:end], scores, missing), axis = 0)
+                block_p_loadings = append(block_p_loadings, self._p_loadings(X[:, start:end], scores, missing), axis = 1)
 
         result_dict = {'wb':block_weights.T,
                        'w':x_weights.T,
@@ -598,15 +602,16 @@ class SMB_PLS:
     def _uncorrelated_part(self, X, y_scores, missing_value):
 
         if missing_value:
-            block_weights = array(nansum((X * y_scores), axis = 0), ndmin = 2).T 
+            block_weights = array(nansum((X * y_scores), axis = 0), ndmin = 2) 
             block_weights = block_weights / nansum((array(~isnan(sum(X, axis = 1)), ndmin = 2).T * y_scores) ** 2, axis = 0)
+            block_weights = block_weights / norm(block_weights)
+            T_scores = array(nansum(X * block_weights, axis = 1) / nansum(((~isnan(X) * block_weights) ** 2), axis = 1), ndmin = 2).T
         
         else:
-            block_weights = X.T @ y_scores / ( y_scores.T @ y_scores ) # calculating Xb block weights (as step 2.1 in L-G's 2018 paper)
+            block_weights = X.T @ y_scores / (y_scores.T @ y_scores) # calculating Xb block weights (as step 2.1 in L-G's 2018 paper)
+            block_weights = block_weights / norm(block_weights)
+            T_scores = X @ block_weights
         
-        block_weights = block_weights / norm( block_weights )
-        T_scores = X @ block_weights
-
         return block_weights, T_scores
     
     def _correlated_part(self, scores, X, y_scores, missing_value):
@@ -616,15 +621,15 @@ class SMB_PLS:
         if missing_value :     
             X_corr = X_corr_coeffs @ nan_to_num(X)  # Attention on this part
             place(X_corr, isnan(X), nan) # Keeping the NaN value as an NaN
-            block_weights = array(nansum((X_corr * y_scores), axis = 0), ndmin = 2).T 
+            block_weights = array(nansum((X_corr * y_scores), axis = 0), ndmin = 2) 
             block_weights = block_weights / nansum((array(~isnan(sum(X, axis = 1)), ndmin = 2).T * y_scores) ** 2, axis = 0)
             block_weights = block_weights / norm(block_weights) #step 2.6
             T_scores =  array(nansum(X_corr * block_weights.T, axis = 1), ndmin = 2).T # step 2.7
         else :    
             X_corr = X_corr_coeffs @ X # finishing step 2.4 for no missing data
             block_weights = X_corr.T @ y_scores / (y_scores.T @ y_scores) # step 2.5
-            block_weights = block_weights / norm(block_weights) #step 2.6
-            T_scores =  X_corr @ block_weights # step 2.7                
+            block_weights = (block_weights / norm(block_weights)).T #step 2.6
+            T_scores =  X_corr @ block_weights.T # step 2.7                
         
         return block_weights, T_scores
     
@@ -651,21 +656,21 @@ class SMB_PLS:
 
         if missing_value:
             p_loadings = nansum(X * scores, axis = 0) 
-            p_loadings = array( p_loadings / (scores.T @ scores), ndmin = 2).T #Step 3.1
+            p_loadings = array( p_loadings / nansum(scores ** 2), ndmin = 2) #Step 3.1
             
-        else: p_loadings = X.T @ scores / (scores.T @ scores) #Step 3.1
+        else: p_loadings = array(X.T @ scores / (scores.T @ scores), ndmin = 2) #Step 3.1
 
-        return array(p_loadings, ndmin = 2).T
+        return p_loadings
 
-    def _cross_validate(self, X_orig, block_divs, Y_orig, LVs):
+    def _cross_validate(self, X_orig, block_divs, Y_orig, LVs, random_state):
 
         
-        cv_folds = KFold(n_splits = self.cv_splits_number)
+        cv_folds = KFold(n_splits = self.cv_splits_number, shuffle = True, random_state = random_state)
         q2 = []
 
         for train_index, test_index in cv_folds.split(X_orig):
             cv_model = SMB_PLS(tol = self.tol)
-            cv_model.fit(X_orig[train_index], block_divs, Y_orig[train_index], latent_variables = LVs)
+            cv_model.fit(X_orig[train_index], block_divs, Y_orig[train_index], latent_variables = LVs, int_call = True)
             q2.append(cv_model.score(X_orig[test_index], Y_orig[test_index]))
 
         q2 = mean(q2)
@@ -685,6 +690,6 @@ class SMB_PLS:
             SSY.loc[ i ] = sum(( ( res - res.mean( axis = 0 ) ) ** 2))
             
         SSYdiff = SSY.iloc[ :-1 ]-SSY.iloc[ 1: ]
-        VIPs = ( ( ( self.weights ** 2) @ SSYdiff.values ) * self.weights.shape[1] / ( SSY[0] - SSY[-1] ) ** 1 / 2 )
+        VIPs = ( ( ( self.x_weights ** 2) @ SSYdiff.values ) * self.weights.shape[1] / ( SSY[0] - SSY[-1] ) ** 1 / 2 )
        
         return VIPs
