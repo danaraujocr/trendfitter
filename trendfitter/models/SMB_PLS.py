@@ -226,9 +226,6 @@ class SMB_PLS:
                     self.superlevel_p_loadings = append(self.superlevel_p_loadings, result['p'], axis = 0)
                     self.c_loadings = append(self.c_loadings, result['c'], axis = 0)
                 
-                
-
-        
         self.x_weights_star = (self.x_weights @ pinv(self.superlevel_p_loadings.T @ self.x_weights))
 
         return
@@ -585,11 +582,11 @@ class SMB_PLS:
                     block_weights = append(zeros((1, start)), block_weights, axis = 1 )
 
             else : 
-                block_p_loadings = append(block_p_loadings, self._p_loadings(X[:, start:end], scores, missing), axis = 1)
+                block_p_loadings = append(block_p_loadings, self._p_loadings(X[:, start:end], array(scores, ndmin = 2).T, missing), axis = 1)
 
-        result_dict = {'wb':block_weights.T,
+        result_dict = {'wb':block_weights,
                        'w':x_weights.T,
-                       'pb':block_p_loadings.T,
+                       'pb':block_p_loadings,
                        'tb':T_scores,
                        'wT':superlevel_weights.T,
                        'p':superlevel_p_loadings.T,
@@ -609,8 +606,8 @@ class SMB_PLS:
         
         else:
             block_weights = X.T @ y_scores / (y_scores.T @ y_scores) # calculating Xb block weights (as step 2.1 in L-G's 2018 paper)
-            block_weights = block_weights / norm(block_weights)
-            T_scores = X @ block_weights
+            block_weights = (block_weights / norm(block_weights)).T
+            T_scores = X @ block_weights.T
         
         return block_weights, T_scores
     
@@ -658,7 +655,7 @@ class SMB_PLS:
             p_loadings = nansum(X * scores, axis = 0) 
             p_loadings = array( p_loadings / nansum(scores ** 2), ndmin = 2) #Step 3.1
             
-        else: p_loadings = array(X.T @ scores / (scores.T @ scores), ndmin = 2) #Step 3.1
+        else: p_loadings = array(X.T @ scores / (scores.T @ scores), ndmin = 2).T #Step 3.1
 
         return p_loadings
 
