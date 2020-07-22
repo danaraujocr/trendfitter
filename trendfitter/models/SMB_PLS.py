@@ -260,10 +260,10 @@ class SMB_PLS:
         else:
             latent_variables = sum(latent_variables)
         
-        if isnan( sum( X ) ) :
+        if isnan( sum( X_values ) ) :
             
-            result = zeros( ( X.shape[ 0 ], latent_variables ) )
-            X_nan = isnan( X )
+            result = zeros( ( X_values.shape[ 0 ], latent_variables ) )
+            X_nan = isnan( X_values )
             variables_missing_mask = unique( X_nan, axis = 0 )
 
             for row_mask in variables_missing_mask :
@@ -279,7 +279,7 @@ class SMB_PLS:
                     result[ rows_indexes, : ] = scores_with_missing_values( self.omega, self.x_weights_star[ : , ~row_mask ], X[ rows_indexes[ 0 ][ :, None ], ~row_mask], 
                                                                             LVs = latent_variables, method = self.missing_values_method )
                     
-        else : result = X @ self.x_weights_star[ :latent_variables, : ].T
+        else : result = X_values @ self.x_weights_star[ :latent_variables, : ].T
 
         # TO DO : check if X makes sense with latent variables
         return result
