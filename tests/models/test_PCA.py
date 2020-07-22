@@ -27,17 +27,15 @@ class TestPCA(object):
         expected_VIPs = array([[0.52334216, 0.57299319, 0.70859153, 0.63624226, 0.05883086]])
         assert test_model.feature_importances_ == pytest.approx(expected_VIPs), 'VIPs are not as expected'
 
-        expected_omega = array([[ 1.48529445e+02, -6.14879643e-06,  2.48236601e-14,  1.01018217e-13,   4.74717518e-15],
-                                [-6.14879643e-06,  6.34895824e+01, -3.23822093e-07, -9.99561992e-07,  -2.73430106e-10],
-                                [ 2.48236601e-14, -3.23822093e-07,  1.51924177e+01, -3.29969945e-06,   8.00928824e-13],
-                                [ 1.01018217e-13, -9.99561992e-07, -3.29969945e-06,  1.18540840e+01,  -1.43787014e-06],
-                                [ 4.74717518e-15, -2.73430106e-10,  8.00928824e-13, -1.43787014e-06,   5.93447064e+00]])
+        expected_omega = array([[ 1.48529445e+02, -6.14879643e-06],
+                                [-6.14879643e-06,  6.34895824e+01]])
+
         assert test_model.omega == pytest.approx(expected_omega), 'Omega matrix is not as expected'
 
         expected_q2 = array([0.5567342018714448, 0.845616530550494])
         assert test_model.q2 == pytest.approx(expected_q2), 'Q2 results are not the expected'
 
-        expected_chi2 = array([2.3793202060672445, 2.243469844496008, 1.132808505870134, 0.36465682712001724])
+        expected_chi2 = array([2.3793202060672445, 2.243469844496008])
         assert test_model._chi2_params == pytest.approx(expected_chi2), 'Chi2 parameters are not as expected'   
     
     def test_fit_missingdataset(self):
@@ -56,17 +54,14 @@ class TestPCA(object):
         expected_VIPs = array([[0.53644745, 0.5862304,  0.7049465,  0.63222156, 0.04015409]])
         assert test_model.feature_importances_ == pytest.approx(expected_VIPs), 'VIPs are not as expected'
 
-        expected_omega = array([[ 1.47869724e+02, -4.00782741e+00, -1.61573682e+00,  1.11976354e+00,   8.86326026e-01],
-                       [-4.00782741e+00,  6.45928321e+01, -3.80556246e-01,  2.28567059e-01,   5.84927728e-02],
-                       [-1.61573682e+00, -3.80556246e-01,  1.38083114e+01,  2.07760322e-02,   4.33467397e-02],
-                       [ 1.11976354e+00,  2.28567059e-01,  2.07760322e-02,  1.17336462e+01,  -1.19156376e-03],
-                       [ 8.86326026e-01,  5.84927728e-02,  4.33467397e-02, -1.19156376e-03,   6.45202485e+00]])
+        expected_omega = array([[ 1.47869724e+02, -4.00782741e+00],
+                                [-4.00782741e+00,  6.45928321e+01]])
         assert test_model.omega == pytest.approx(expected_omega), 'Omega matrix is not as expected'
 
         expected_q2 = array([0.5572977189894531, 0.8418633512116621])
         assert test_model.q2 == pytest.approx(expected_q2), 'Q2 results are not the expected'
 
-        expected_chi2 = array([2.3031890323200703, 1.960885543811247, 1.0517067450883657, 0.4141006788413027])
+        expected_chi2 = array([2.3031890323200703, 1.960885543811247])
         assert test_model._chi2_params == pytest.approx(expected_chi2), 'Chi2 parameters are not as expected'   
 
     

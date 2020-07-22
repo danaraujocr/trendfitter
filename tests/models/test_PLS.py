@@ -84,14 +84,10 @@ class TestPLS(object):
         expected_q2 = array([0.28124385593261386, 0.44299735550099845, 0.46414076569509394, 0.4777738478674691])
         assert test_model.q2y == pytest.approx(expected_q2), 'Q2 results are not the expected'
 
-        expected_chi2_x = array([4.2260741947880405, 3.6569604105213234, 2.839838320613596, 2.5325678398904667, 
-                                 2.339460442574692, 2.377990269594017, 1.8635322589489425, 2.1352872839523274, 
-                                 2.126912496418633])
+        expected_chi2_x = array([4.2260741947880405, 3.6569604105213234, 2.839838320613596, 2.5325678398904667])
         assert test_model._x_chi2_params == pytest.approx(expected_chi2_x), 'x_Chi2 parameters are not as expected'  
 
-        expected_chi2_y = array([0.769305530255242, 0.7417466343075413, 0.7559688556382609, 0.7592388820343167, 
-                                 0.765427926544429, 0.7376254759409571, 0.7462417136569457, 0.7384581739778784, 
-                                 0.7374879297830842])
+        expected_chi2_y = array([0.769305530255242, 0.7417466343075413, 0.7559688556382609, 0.7592388820343167])
         assert test_model._y_chi2_params == pytest.approx(expected_chi2_y), 'y_Chi2 parameters are not as expected'   
     
     def test_fit_fulldataset(self):
@@ -171,10 +167,10 @@ class TestPLS(object):
         expected_q2 = array([0.2668460462257186, 0.4149487741167585, 0.4299748436733221])
         assert test_model.q2y == pytest.approx(expected_q2), 'Q2 results are not the expected'
 
-        expected_chi2_x = array([4.070330841792376, 3.456808416735069, 2.704209315645609, 2.580675804525607, 2.3438153267219723, 2.1124115762540243, 1.8197774351953078])
+        expected_chi2_x = array([4.070330841792376, 3.456808416735069, 2.704209315645609])
         assert test_model._x_chi2_params == pytest.approx(expected_chi2_x), 'x_Chi2 parameters are not as expected'  
 
-        expected_chi2_y = array([0.5399925133560206, 0.6020512439574859, 0.6178419025809769, 0.6412706478079183, 0.6174785762892275, 0.6157691570215392, 0.6252037067311925])
+        expected_chi2_y = array([0.5399925133560206, 0.6020512439574859, 0.6178419025809769])
         assert test_model._y_chi2_params == pytest.approx(expected_chi2_y), 'y_Chi2 parameters are not as expected'
     
     def test_predict_fulldata(self):
@@ -311,7 +307,7 @@ class TestPLS(object):
         
         assert expected == pytest.approx(test_model.score(X_test_data, Y_test_data))
             
-    def test_Hot_T2(self):
+    def test_Hotellings_T2(self):
         
         test_data = pd.read_csv(TESTDATA1_FILENAME, index_col = 0, delimiter = ';',).drop(columns=['ObsNum']).dropna()
         test_data = (test_data - test_data.mean()) / test_data.std()
