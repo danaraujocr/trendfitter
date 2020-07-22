@@ -407,7 +407,7 @@ class SMB_PLS:
         
         scores_matrix = self.transform( X, latent_variables = latent_variables )
         
-        T2s = sum(((scores_matrix / std(scores_matrix)) ** 2), axis = 1)
+        T2s = array(sum(((scores_matrix / std(scores_matrix)) ** 2), axis = 1), ndmin = 2).T
         
         return T2s
     
