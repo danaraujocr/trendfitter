@@ -296,8 +296,7 @@ class PCA:
 
         if isinstance( X, DataFrame ) : X = X.to_numpy()
         
-        Y = X
-        ErrorQ2 = Y - self.predict(X, principal_components = principal_components)
+        ErrorQ2 = X - self.predict(X, principal_components = principal_components)
         result = 1 - nanvar( ErrorQ2 ) / nanvar( X )
         return result
 
