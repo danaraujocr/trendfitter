@@ -96,8 +96,8 @@ class PLS:
         self.feature_importances_ = None #for scikit learn use with feature selection methods
         self._x_chi2_params = []
         self._y_chi2_params = []
-        
-        
+               
+
     def fit(self, X, Y, latent_variables = None, deflation = 'both', random_state = None, int_call = False):
 
         """
@@ -238,16 +238,16 @@ class PLS:
                 X = X - x_scores @ p_loadings
                 Y = Y - x_scores @ c_loadings
 
-                SPE_X = sum( X[~(any(isnan(X), axis = 1))] ** 2 , axis = 1 )
-                SPE_Y = sum( Y[~(any(isnan(Y), axis = 1))] ** 2 , axis = 1 )
+                SPE_X = sum(X[~(any(isnan(X), axis = 1))] ** 2, axis = 1)
+                SPE_Y = sum(Y[~(any(isnan(Y), axis = 1))] ** 2, axis = 1)
                 self._x_chi2_params.append((2 * mean(SPE_X) ** 2) / var(SPE_X)) #for future SPE analysis
                 self._y_chi2_params.append((2 * mean(SPE_Y) ** 2) / var(SPE_Y)) #for future SPE analysis
                 
             elif self.deflation == 'Y':
 
-                SPE_Y = sum( Y[~(any(isnan(Y), axis = 1))] ** 2 , axis = 1 )
+                SPE_Y = sum(Y[~(any(isnan(Y), axis = 1))] ** 2 , axis = 1)
                 
-                SPE_Y = sum( Y ** 2 , axis = 1 )
+                SPE_Y = sum(Y ** 2, axis = 1)
                 self._y_chi2_params.append((2 * mean(SPE_Y) ** 2) / var(SPE_Y)) #for future SPE analysis
 
             else :
@@ -304,33 +304,33 @@ class PLS:
 
         """
         
-        if isinstance( X, DataFrame ) : X = X.to_numpy()      
-        if latent_variables == None : latent_variables = self.latent_variables
+        if isinstance(X, DataFrame): X = X.to_numpy()      
+        if latent_variables == None: latent_variables = self.latent_variables
         
-        if isnan( sum( X ) ) :
+        if isnan(sum(X)):
             
-            result = zeros( ( X.shape[ 0 ], latent_variables ) )
-            X_nan = isnan( X )
-            variables_missing_mask = unique( X_nan, axis = 0 )
+            result = zeros((X.shape[0], latent_variables))
+            X_nan = isnan(X)
+            variables_missing_mask = unique(X_nan, axis = 0)
 
-            for row_mask in variables_missing_mask :
+            for row_mask in variables_missing_mask:
                 
-                rows_indexes = where( ( X_nan == row_mask ).all( axis = 1 ) )                
+                rows_indexes = where((X_nan == row_mask).all(axis = 1))                
                 
-                if sum( row_mask ) == 0 : 
+                if sum(row_mask) == 0: 
 
-                    result[ rows_indexes, : ] = X[ rows_indexes, :] @ self.weights_star[ :latent_variables, : ].T 
+                    result[rows_indexes, :] = X[rows_indexes, :] @ self.weights_star[:latent_variables, :].T 
                 
                 else :
                     
-                    result[ rows_indexes, : ] = scores_with_missing_values( self.omega, self.weights_star[ : , ~row_mask ], X[ rows_indexes[ 0 ][ :, None ], ~row_mask], 
-                                                                            LVs = latent_variables, method = self.missing_values_method )
+                    result[rows_indexes, :] = scores_with_missing_values(self.omega, self.weights_star[:, ~row_mask], X[rows_indexes[0][:, None], ~row_mask], 
+                                                                            LVs = latent_variables, method = self.missing_values_method)
                     
-        else : result = X @ self.weights_star[ :latent_variables, : ].T 
+        else : result = X @ self.weights_star[:latent_variables, :].T 
 
         return result
     
-    def transform_inv(self, scores, latent_variables = None) :
+    def transform_inv(self, scores, latent_variables = None):
 
         """
         Transforms the scores matrix to the original X.
@@ -353,7 +353,7 @@ class PLS:
         
         return result
     
-    def predict( self, X, latent_variables = None ) :
+    def predict(self, X, latent_variables = None):
      
         """
         Predicts Y values using X array.
@@ -371,13 +371,13 @@ class PLS:
             returns predictions
         """
 
-        if isinstance( X, DataFrame ): X = X.to_numpy()        
+        if isinstance(X, DataFrame): X = X.to_numpy()        
         if latent_variables == None: latent_variables = self.latent_variables        
         preds = self.transform(X, latent_variables = latent_variables) @ self.c_loadings[:latent_variables, :] 
         
         return preds
     
-    def score( self, X, Y, latent_variables = None ):
+    def score(self, X, Y, latent_variables = None):
         
         """
         Return the coefficient of determination R^2 of the prediction.
@@ -399,16 +399,16 @@ class PLS:
             returns calculated r².
         """
 
-        if isinstance(Y, DataFrame) or isinstance(Y, Series) : Y = array( Y.to_numpy() , ndmin = 2 ).T       
-        if latent_variables == None : latent_variables = self.latent_variables 
+        if isinstance(Y, DataFrame) or isinstance(Y, Series): Y = array(Y.to_numpy(), ndmin = 2).T       
+        if latent_variables == None: latent_variables = self.latent_variables 
 
-        Y_hat = self.predict( X, latent_variables = latent_variables )
+        Y_hat = self.predict(X, latent_variables = latent_variables)
         F = Y - Y_hat
-        score = 1 - nanvar( F ) / nanvar( Y )
+        score = 1 - nanvar(F) / nanvar(Y)
         
         return score
     
-    def Hotellings_T2( self, X, latent_variables = None ):
+    def Hotellings_T2(self, X, latent_variables = None):
 
         """
         Calculates the Hotelling's T² for the X samples.
@@ -426,13 +426,13 @@ class PLS:
             returns all calculated T²s for the X samples
         """
         
-        if isinstance( X, DataFrame ) : X = X.to_numpy()     #dataframe, return it
+        if isinstance(X, DataFrame): X = X.to_numpy()     #dataframe, return it
    
-        if latent_variables == None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        if latent_variables == None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
         
-        scores_matrix = self.transform( X, latent_variables = latent_variables )
+        scores_matrix = self.transform(X, latent_variables = latent_variables)
         
-        T2s = sum( ( ( scores_matrix / std( scores_matrix) ) ** 2), axis = 1 )
+        T2s = sum(((scores_matrix / std( scores_matrix)) ** 2), axis = 1)
         
         return T2s
     
@@ -454,7 +454,7 @@ class PLS:
             returns the limit T² for the alpha based on the training dataset
         """
 
-        if latent_variables == None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        if latent_variables == None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
 
         F_value = f.isf(1 - alpha , latent_variables, self.training_scores.shape[0])
         t2_limit = ((latent_variables * (self.training_scores.shape[0] ** 2 - 1)) / 
@@ -463,7 +463,7 @@ class PLS:
 
         return t2_limit
 
-    def SPEs_X( self, X, latent_variables = None ):
+    def SPEs_X(self, X, latent_variables = None):
 
         """
         Calculates the Squared prediction error for for the X matrix rebuild.
@@ -481,12 +481,12 @@ class PLS:
             returns all calculated SPEs for the X samples
         """
         
-        if latent_variables == None : latent_variables = self.latent_variables
+        if latent_variables == None: latent_variables = self.latent_variables
 
         if isinstance(X, DataFrame) : X = X.to_numpy()       
         
         error = X - self.transform_inv(self.transform(X))  
-        SPE = nansum( error ** 2, axis = 1 )
+        SPE = nansum(error ** 2, axis = 1)
         
         return SPE
 
@@ -536,7 +536,7 @@ class PLS:
             returns all calculated SPEs for the X samples
         """
         
-        if latent_variables == None : latent_variables = self.latent_variables
+        if latent_variables == None: latent_variables = self.latent_variables
 
         if isinstance(X, DataFrame) : X = X.to_numpy()
 
@@ -546,7 +546,7 @@ class PLS:
         
         
         error = Y - self.predict(X, latent_variables = latent_variables)
-        SPE = nansum( error ** 2, axis = 1 )
+        SPE = nansum(error ** 2, axis = 1)
         
         return SPE
     
@@ -568,14 +568,14 @@ class PLS:
             returns the limit SPE for the alpha based on the training dataset
         """
 
-        if latent_variables == None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        if latent_variables == None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
         
         chi2_val = chi2.isf(1 - alpha, latent_variables - 1)
         SPE_limit = self._y_chi2_params[latent_variables - 1] * chi2_val
         
         return SPE_limit
     
-    def RMSEE ( self, X, Y, latent_variables = None ):
+    def RMSEE (self, X, Y, latent_variables = None):
 
         """
         Returns the root mean squared prediction error.
@@ -595,18 +595,18 @@ class PLS:
             returns calculated RMSEE.
         """
         
-        if latent_variables == None : latent_variables = self.latent_variables
-        if isinstance(Y, DataFrame) : Y = array( Y.to_numpy(), ndmin = 2)
-        elif isinstance(Y, Series): Y = array( Y.to_numpy(), ndmin = 2).T # in case the function receives a dataframe as Y data
-        else : Y = array( Y, ndmin = 2 )
+        if latent_variables == None: latent_variables = self.latent_variables
+        if isinstance(Y, DataFrame): Y = array(Y.to_numpy(), ndmin = 2)
+        elif isinstance(Y, Series): Y = array(Y.to_numpy(), ndmin = 2).T # in case the function receives a dataframe as Y data
+        else : Y = array(Y, ndmin = 2)
 
-        Y_hat = self.predict( X )
-        error = sum( ( Y - Y_hat ) ** 2, axis = 0)
-        RMSEE = ( error / ( Y.shape[ 0 ] - latent_variables - 1 ) ) ** (1 / 2)  # il faut ajouter une manière de calculer multiples Y simultaneement
+        Y_hat = self.predict(X)
+        error = sum((Y - Y_hat) ** 2, axis = 0)
+        RMSEE = (error / (Y.shape[0] - latent_variables - 1)) ** (1 / 2)  # il faut ajouter une manière de calculer multiples Y simultaneement
         
         return RMSEE
       
-    def contributions_scores_ind( self, X, latent_variables = None ): 
+    def contributions_scores_ind(self, X, latent_variables = None): 
 
         """
         calculates the sample individual contributions to the scores.
@@ -624,12 +624,12 @@ class PLS:
             matrix of scores contributions for every X sample
         """
 
-        if latent_variables == None : latent_variables = self.latent_variables
-        if isinstance(X, DataFrame) : X = X.to_numpy()
+        if latent_variables == None: latent_variables = self.latent_variables
+        if isinstance(X, DataFrame): X = X.to_numpy()
 
         scores = self.transform(X, latent_variables = latent_variables)
         scores = (scores / std(scores, axis = 0) ** 2)
-        contributions = X * (scores @ (self.weights_star[ :latent_variables, : ] ** 2 ) ** 1 / 2 )
+        contributions = X * (scores @ (self.weights_star[:latent_variables, :] ** 2) ** 1 / 2)
 
         return contributions
     
