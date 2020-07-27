@@ -136,9 +136,9 @@ class PLS:
             X = array(X.to_numpy(), ndmin = 2)
         Orig_X = X
             
-        if isinstance(Y, DataFrame) : Y = array( Y.to_numpy(), ndmin = 2)
+        if isinstance(Y, DataFrame): Y = array( Y.to_numpy(), ndmin = 2)
         elif isinstance(Y, Series): Y = array( Y.to_numpy(), ndmin = 2).T # in case the function receives a dataframe as Y data
-        else : Y = array(Y, ndmin = 2)
+        else: Y = array(Y, ndmin = 2)
         Orig_Y = Y
     
         """------------------- Checking if the data is in fact problematic -------------------------"""
@@ -148,9 +148,9 @@ class PLS:
         else: dataset_complete = True
         
         """------------------- Handling the case where the amount of latent variables is not defined -------------------"""
-        if self.latent_variables != None :
+        if self.latent_variables != None:
             latent_variables = self.latent_variables
-        else :
+        else:
             latent_variables = min(X.shape) #maximum amount of extractable latent variables
             kf = KFold(n_splits = self.cv_splits_number, shuffle = True , random_state = random_state)
 
@@ -204,7 +204,7 @@ class PLS:
             
             
             """-------------------------------- Cross validation section -----------------------------------"""
-            if self.latent_variables == None: # if the quantity of principal components is undefined, a cross-validation routine decides when to stop
+            if self.latent_variables is None: # if the quantity of principal components is undefined, a cross-validation routine decides when to stop
                 
                 testq2 = []
                 
@@ -216,14 +216,14 @@ class PLS:
                 q2_final.append(mean(testq2))
                 """ ------------------ coefficients and VIP calculations ----------------- """
              
-                if latent_variable > 1 : 
+                if latent_variable > 1: 
                     
                     if (q2_final[-1] < q2_final[-2] or  # mean cross-validation performance of the model has decreased with the addition of another latent variable
                         q2_final[-1] - q2_final[-2] < 0.01 or  # mean cross-validation performance of the model has increased less than 1% with the addition of another latent variable
                         latent_variable > min(X.shape) / 2): # the amount of latent variables added is more than half the variables on X
                         self.q2y = q2_final[:-1]
                         self.latent_variables = latent_variable - 1 
-                        if self.missing_values_method == 'TSM' : break  #In case of TSM use there is no need of more components for missing value estimation
+                        if self.missing_values_method == 'TSM': break  #In case of TSM use there is no need of more components for missing value estimation
                         
             """-------------------------------- p loadings calculation section ----------------------------"""                        
             if dataset_complete: # if the dataset is without problematic data, matrix implementation is possible and faster
@@ -250,7 +250,7 @@ class PLS:
                 SPE_Y = sum(Y ** 2, axis = 1)
                 self._y_chi2_params.append((2 * mean(SPE_Y) ** 2) / var(SPE_Y)) #for future SPE analysis
 
-            else :
+            else:
                 raise ValueError("impossible deflation parameter")
             
             
@@ -285,7 +285,7 @@ class PLS:
 
         return
         
-    def transform(self, X, latent_variables = None) :
+    def transform(self, X, latent_variables = None):
 
         """
         Transforms the X matrix to the model-fitted space.
@@ -305,7 +305,7 @@ class PLS:
         """
         
         if isinstance(X, DataFrame): X = X.to_numpy()      
-        if latent_variables == None: latent_variables = self.latent_variables
+        if latent_variables is None: latent_variables = self.latent_variables
         
         if isnan(sum(X)):
             
@@ -321,12 +321,12 @@ class PLS:
 
                     result[rows_indexes, :] = X[rows_indexes, :] @ self.weights_star[:latent_variables, :].T 
                 
-                else :
+                else:
                     
                     result[rows_indexes, :] = scores_with_missing_values(self.omega, self.weights_star[:, ~row_mask], X[rows_indexes[0][:, None], ~row_mask], 
                                                                             LVs = latent_variables, method = self.missing_values_method)
                     
-        else : result = X @ self.weights_star[:latent_variables, :].T 
+        else: result = X @ self.weights_star[:latent_variables, :].T 
 
         return result
     
@@ -348,7 +348,7 @@ class PLS:
             matrix of rebuilt X from scores
         """
                   
-        if latent_variables == None : latent_variables = self.latent_variables
+        if latent_variables is None: latent_variables = self.latent_variables
         result = scores @ self.weights_star[:latent_variables, :] 
         
         return result
@@ -372,7 +372,7 @@ class PLS:
         """
 
         if isinstance(X, DataFrame): X = X.to_numpy()        
-        if latent_variables == None: latent_variables = self.latent_variables        
+        if latent_variables is None: latent_variables = self.latent_variables        
         preds = self.transform(X, latent_variables = latent_variables) @ self.c_loadings[:latent_variables, :] 
         
         return preds
@@ -400,7 +400,7 @@ class PLS:
         """
 
         if isinstance(Y, DataFrame) or isinstance(Y, Series): Y = array(Y.to_numpy(), ndmin = 2).T       
-        if latent_variables == None: latent_variables = self.latent_variables 
+        if latent_variables is None: latent_variables = self.latent_variables 
 
         Y_hat = self.predict(X, latent_variables = latent_variables)
         F = Y - Y_hat
@@ -428,7 +428,7 @@ class PLS:
         
         if isinstance(X, DataFrame): X = X.to_numpy()     #dataframe, return it
    
-        if latent_variables == None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        if latent_variables is None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
         
         scores_matrix = self.transform(X, latent_variables = latent_variables)
         
@@ -454,7 +454,7 @@ class PLS:
             returns the limit T² for the alpha based on the training dataset
         """
 
-        if latent_variables == None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        if latent_variables is None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
 
         F_value = f.isf(1 - alpha , latent_variables, self.training_scores.shape[0])
         t2_limit = ((latent_variables * (self.training_scores.shape[0] ** 2 - 1)) / 
@@ -481,9 +481,9 @@ class PLS:
             returns all calculated SPEs for the X samples
         """
         
-        if latent_variables == None: latent_variables = self.latent_variables
+        if latent_variables is None: latent_variables = self.latent_variables
 
-        if isinstance(X, DataFrame) : X = X.to_numpy()       
+        if isinstance(X, DataFrame): X = X.to_numpy()       
         
         error = X - self.transform_inv(self.transform(X))  
         SPE = nansum(error ** 2, axis = 1)
@@ -507,16 +507,16 @@ class PLS:
         SPE_limit : array_like 
             returns the limit SPE for the alpha based on the training dataset
         """
-        if self.deflation == 'Y' : raise ValueError("Impossible to extract X SPE limits with only Y deflation")
+        if self.deflation == 'Y':  raise ValueError("Impossible to extract X SPE limits with only Y deflation")
 
-        if latent_variables == None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        if latent_variables is None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
         
         chi2_val = chi2.isf(1 - alpha, latent_variables - 1)
         SPE_limit = self._x_chi2_params[latent_variables - 1] * chi2_val
         
         return SPE_limit
 
-    def SPEs_Y(self, X, Y, latent_variables = None) :
+    def SPEs_Y(self, X, Y, latent_variables = None):
 
         """
         Calculates the Squared prediction error for the Y values.
@@ -536,11 +536,11 @@ class PLS:
             returns all calculated SPEs for the X samples
         """
         
-        if latent_variables == None: latent_variables = self.latent_variables
+        if latent_variables is None: latent_variables = self.latent_variables
 
-        if isinstance(X, DataFrame) : X = X.to_numpy()
+        if isinstance(X, DataFrame): X = X.to_numpy()
 
-        if isinstance(Y, DataFrame) or isinstance(Y, Series) : 
+        if isinstance(Y, DataFrame) or isinstance(Y, Series): 
             Y = Y.to_numpy()
             Y = array(Y, ndmin = 2)
         
@@ -568,7 +568,7 @@ class PLS:
             returns the limit SPE for the alpha based on the training dataset
         """
 
-        if latent_variables == None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        if latent_variables is None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
         
         chi2_val = chi2.isf(1 - alpha, latent_variables - 1)
         SPE_limit = self._y_chi2_params[latent_variables - 1] * chi2_val
@@ -595,10 +595,10 @@ class PLS:
             returns calculated RMSEE.
         """
         
-        if latent_variables == None: latent_variables = self.latent_variables
+        if latent_variables is None: latent_variables = self.latent_variables
         if isinstance(Y, DataFrame): Y = array(Y.to_numpy(), ndmin = 2)
         elif isinstance(Y, Series): Y = array(Y.to_numpy(), ndmin = 2).T # in case the function receives a dataframe as Y data
-        else : Y = array(Y, ndmin = 2)
+        else: Y = array(Y, ndmin = 2)
 
         Y_hat = self.predict(X)
         error = sum((Y - Y_hat) ** 2, axis = 0)
@@ -624,7 +624,7 @@ class PLS:
             matrix of scores contributions for every X sample
         """
 
-        if latent_variables == None: latent_variables = self.latent_variables
+        if latent_variables is None: latent_variables = self.latent_variables
         if isinstance(X, DataFrame): X = X.to_numpy()
 
         scores = self.transform(X, latent_variables = latent_variables)
@@ -652,8 +652,8 @@ class PLS:
             matrix of SPE contributions for every X sample
         """
 
-        if latent_variables == None : latent_variables = self.latent_variables
-        if isinstance(X, DataFrame) : X = X.to_numpy()
+        if latent_variables is None: latent_variables = self.latent_variables
+        if isinstance(X, DataFrame): X = X.to_numpy()
         
         error = X - self.transform_inv(self.transform(X))
         
@@ -666,7 +666,7 @@ class PLS:
         """
         Calculates the VIP scores for all the variables for the prediction
         """
-        if latent_variables is None : latent_variables = self.latent_variables
+        if latent_variables is None: latent_variables = self.latent_variables
         
         SSY = array(sum((Y - nanmean(Y, axis = 0)) ** 2))
         for i in range(1, latent_variables + 1):
