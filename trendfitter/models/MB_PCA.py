@@ -178,8 +178,7 @@ class MB_PCA:
                 for i in range(int_PCA.principal_components):
                     block_scores[:, i] = nansum(X[:, start:end] * b_loadings[i, :], axis = 1) / nansum(((~isnan(X[:, start:end]) * b_loadings[i, :]) ** 2), axis = 1)
             else:
-                block_scores = (X[:, start:end] @ b_loadings.T) 
-            block_scores = block_scores / sqrt(end - start)
+                block_scores = (X[:, start:end] @ b_loadings.T)
 
             superlevel_T[:, [block + num * len(block_coord_pairs) for num, _ in enumerate(block_coord_pairs)]] = block_scores
             self.omega_b.append(block_scores.T @ block_scores)

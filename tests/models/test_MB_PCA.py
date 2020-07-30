@@ -22,15 +22,15 @@ class TestMBPCA(object):
                             [-0.37043885,  0.35674997,  0.19766103, -0.22123992,  0.8046661 ]])
         assert test_model.block_loadings[:2, :] == pytest.approx(b_loadings), 'Block loadings are not as expected'
 
-        splevel_loadings = array([[ 0.31009043,  0.32416249,  0.24061472, -0.1964611 ],
-                                  [ 0.24061472, -0.1964611,   0.18702655,  0.42464373]])
+        splevel_loadings = array([[ 0.43853409,  0.56146591,  0.3402806,  -0.3402806, ],
+                                  [ 0.3402806,  -0.3402806,   0.26449548,  0.73550452,]])
         assert test_model.superlevel_loadings == pytest.approx(splevel_loadings), 'superlevel loadings are not as expected'
 
-        splevel_scores = array([[ 0.40749672,  0.46587766,  0.3128538,  -0.61305833],
-                                [-0.63849101, -1.09206628, -0.48231279,  0.59802976],
-                                [ 0.23734125, -0.33094158,  0.18998816,  0.34223845],
-                                [ 0.27168559,  0.89784844,  0.20903036, -0.82985453],
-                                [ 0.50252179,  0.32173648,  0.38628442,  0.06765154]])
+        splevel_scores = array([[ 0.57628739,  0.80692377,  0.44244208, -1.06184817],
+                                [-0.90296265, -1.89151428, -0.68209329,  1.03581792],
+                                [ 0.33565122, -0.57320763,  0.26868383,  0.59277439],
+                                [ 0.38422145,  1.55511912,  0.29561357, -1.43735021],
+                                [ 0.71067313,  0.55726393,  0.54628867,  0.11717591]])
 
         assert test_model.superlevel_training_scores[:5] == pytest.approx(splevel_scores), 'superlevel scores are not as expected'
 
