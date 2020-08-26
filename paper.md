@@ -37,7 +37,6 @@ This first version contains:
 The models have functions for calculation of scores, loadings, weights, contributions, Hotelling's T², and Squared Prediction Errors for both models with single blocks and multiblocks with multiple levels. Functions to evaluate the confidence intervals are also available together with multiple functions to deal with missing data where available (PCA, MB-PCA, PLS, MB-PLS), a frequent problem in industrial process data.
 
 
-The hoggorm package provides access to an extended repertoire of interpretation tools that are integrated in PCA, PCR, PLS1 and PLS2. These including scores, loadings, correlation loadings, explained variances for calibrated and validated models (both for individual variables as well as all variables together). Scores are the objects' coordinates in the compressed data representation and can for instance be used to search for patterns or groups among the objects. Loadings are the variables' representations in the compressed space showing their contribution to the components. Finally, correlation loadings show how each variable correlates to the score vectors/components and how much of the variation in each variable is explained across components. Note that models trained with hoggorm may also be applied for prediction purposes, both for continuous and categorical variables, where appropriate.
 
 # Acknowledgements
 
