@@ -48,32 +48,34 @@ class PLS:
 
         Methods
         -------
-        fit(X, blocks_sep, Y)
+        fit(X, Y, latent_variables = None, deflation = 'both', random_state = None, int_call = False)
             Applies the NIPALS like method to find the best parameters that adjust the model 
                 to the data
-        transform(X)
+        transform(X, latent_variables = None)
             Transforms the original data to the latent variable space in the super level 
-        transform_inv(scores)
+        transform_inv(scores, latent_variables = None)
             Returns the scores to the original data space
-        predict(X)
+        predict(X, latent_variables = None)
             Predicts Y values 
-        score(X, Y)
+        score(X, Y, latent_variables = None)
             calculates the r² value for Y
-        Hotellings_T2(X)
+        Hotellings_T2(X, latent_variables = None)
             Calculates Hotellings_T2 values for the X data in the super level
-        T2_limit(alpha)
+        T2_limit(alpha, latent_variables = None)
             Returns the Hotelling's T² limit estimated with alpha confidence level
-        SPEs_X(X)
+        SPEs_X(X, latent_variables = None)
             Calculates squared prediction errors on the X side
-        SPE_X_limit(alpha)
+        SPE_X_limit(alpha, latent_variables = None)
             Returns the squared prediction error limit with alpha confidence level 
-        SPEs_Y(X, Y)
+        SPEs_Y(X, Y, latent_variables = None)
             Calculates squared prediction errors for the predictions
-        SPE_Y_limit(alpha)
+        SPE_Y_limit(alpha, latent_variables = None)
             Returns the squared prediction error limit with alpha confidence level
-        contributions_scores_ind(X)
+        RMSEE(X, Y, latent_variables = None)
+            returns the Root mean square estimation error
+        contributions_scores_ind(X, latent_variables = None)
             calculates the contributions of each variable to the scores on the super level
-        contributions_SPE_X(X)
+        contributions_SPE_X(X, latent_variables = None)
             calculates the contributions of each variable to the SPE on the X side for 
 
     """
@@ -97,7 +99,6 @@ class PLS:
         self._x_chi2_params = []
         self._y_chi2_params = []
                
-
     def fit(self, X, Y, latent_variables = None, deflation = 'both', random_state = None, int_call = False):
 
         """
