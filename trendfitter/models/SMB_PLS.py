@@ -334,7 +334,7 @@ class SMB_PLS:
         else:
             latent_variables = sum(latent_variables)
 
-        result = scores @ self.x_weights_star[:latent_variables, :] 
+        result = scores @ self.p[:latent_variables, :] 
         
         return result
     
@@ -438,7 +438,7 @@ class SMB_PLS:
         
         return T2s
     
-    def Hotellings_T2_block(self, X, block, latent_variables = None):
+    #def Hotellings_T2_block(self, X, block, latent_variables = None):
 
         """
         Calculates the Hotelling's T² for the X samples on the superlevel.
@@ -457,7 +457,7 @@ class SMB_PLS:
         """
 
 
-        return T2s_block
+    #    return T2s_block
         
     def SPEs_X(self, X, latent_variables = None): 
         
