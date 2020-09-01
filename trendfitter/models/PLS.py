@@ -629,8 +629,8 @@ class PLS:
         if isinstance(X, DataFrame): X = X.to_numpy()
 
         scores = self.transform(X, latent_variables = latent_variables)
-        scores = (scores / std(scores, axis = 0) ** 2)
-        contributions = X * (scores @ (self.weights_star[:latent_variables, :] ** 2) ** 1 / 2)
+        scores = (scores / std(scores, axis = 0)) ** 2  
+        contributions = X * ((scores @ (self.weights_star[:latent_variables, :] ** 2)) ** (1 / 2))
 
         return contributions
     
