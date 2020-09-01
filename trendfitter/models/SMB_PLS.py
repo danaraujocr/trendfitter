@@ -1,4 +1,4 @@
-from numpy import array, isnan, nansum, nan_to_num, multiply, sum, sqrt, append, zeros, place, nan, concatenate, mean, nanvar, std, unique, where, nanmean
+from numpy import array, isnan, nansum, nan_to_num, multiply, sum, sqrt, append, zeros, place, nan, concatenate, mean, nanvar, std, unique, where, nanmean, identity
 from numpy.linalg import norm, pinv
 from sklearn.model_selection import KFold
 from pandas import DataFrame, Series
@@ -98,6 +98,7 @@ class SMB_PLS:
         self.block_p_loadings = None
         self.superlevel_p_loadings = None
         self.block_weights = None
+        self.block_weights_star = None
         self.superlevel_weights = None
         self.x_weights_star = None
         self.x_weights = None
@@ -105,6 +106,8 @@ class SMB_PLS:
         self.VIPs = None
         self.coefficients = None
         self.omega = None # score covariance matrix for missing value estimation
+        self.training_superlevel_scores = None
+        self.training_y_scores = None
             
     def fit(self, X, block_divs, Y, latent_variables = None, deflation = 'both', int_call = False, random_state = None):
         """
@@ -145,6 +148,7 @@ class SMB_PLS:
 
         self.block_divs = block_divs
         block_coord_pairs = (*zip([0] + block_divs[:-1], block_divs),)
+        G = [identity(pair[1] - pair[0]) for pair in block_coord_pairs]
 
         if isinstance(X, DataFrame):# If X data is a pandas Dataframe
             indexes = X.index.copy()
@@ -153,9 +157,9 @@ class SMB_PLS:
 
         missing_values_list = [isnan(sum(X[:, start:end])) for (start, end) in block_coord_pairs] 
           
-        if isinstance( Y, DataFrame ) or isinstance( Y, Series ): # If Y data is a pandas Dataframe or Series 
-            if isinstance( Y, DataFrame ) : Y_columns = Y.columns
-            Y = array( Y.to_numpy(), ndmin = 2 ).T
+        if isinstance(Y, DataFrame) or isinstance(Y, Series): # If Y data is a pandas Dataframe or Series 
+            if isinstance(Y, DataFrame) : Y_columns = Y.columns
+            Y = array(Y.to_numpy(), ndmin = 2).T
             
         Orig_X = X
         Orig_Y = Y
@@ -217,6 +221,13 @@ class SMB_PLS:
                     self.block_p_loadings = result['pb']
                     self.superlevel_p_loadings = result['p']
                     self.c_loadings = result['c']
+                    self.training_superlevel_scores = result['tT']
+                    self.training_block_scores = result['tb']
+                    self.training_y_scores = result['u']
+                    self.x_weights_star2 = result['w']
+                    for bl, (start, end) in enumerate(block_coord_pairs):
+                        G[bl] = G[bl] - result['w'][:, start:end].T @ result['p'][:, start:end]
+
                 
                 else:                    
                     self.superlevel_weights = append(self.superlevel_weights, result['wT'], axis = 0)
@@ -225,7 +236,23 @@ class SMB_PLS:
                     self.block_p_loadings = append(self.block_p_loadings, result['pb'], axis = 0)
                     self.superlevel_p_loadings = append(self.superlevel_p_loadings, result['p'], axis = 0)
                     self.c_loadings = append(self.c_loadings, result['c'], axis = 0)
-                
+                    self.training_superlevel_scores = append(self.training_superlevel_scores, result['tT'], axis = 1)
+                    self.training_block_scores = append(self.training_block_scores, result['tb'], axis = 1)
+                    self.training_y_scores = append(self.training_y_scores, result['u'], axis = 1)
+
+                    for bl, (start, end) in enumerate(block_coord_pairs[block:]):
+                        if bl == 0: x_weights_star2 = array(G[block + bl] @ result['w'][:, start:end].T, ndmin = 2).T
+                        else: x_weights_star2 = append(x_weights_star2, array(G[block + bl] @ result['w'][:, start:end].T, ndmin = 2 ).T, axis = 1)
+                        if block > 0 and bl == 0: x_weights_star2 = append(zeros((1, start)), x_weights_star2, axis = 1)
+
+                        G[block + bl] = G[block + bl] - result['w'][:, start:end].T @ result['p'][:, start:end]
+                    
+                    self.x_weights_star2 = append(self.x_weights_star2, x_weights_star2, axis = 0)
+                    
+
+
+        
+        self.block_weights_star = (self.block_weights @ pinv(self.block_p_loadings.T @ self.block_weights))
         self.x_weights_star = (self.x_weights @ pinv(self.superlevel_p_loadings.T @ self.x_weights))
 
         return
@@ -260,26 +287,26 @@ class SMB_PLS:
         else:
             latent_variables = sum(latent_variables)
         
-        if isnan( sum( X_values ) ) :
+        if isnan(sum(X_values)):
             
-            result = zeros( ( X_values.shape[ 0 ], latent_variables ) )
-            X_nan = isnan( X_values )
-            variables_missing_mask = unique( X_nan, axis = 0 )
+            result = zeros((X_values.shape[0], latent_variables))
+            X_nan = isnan(X_values)
+            variables_missing_mask = unique(X_nan, axis = 0)
 
-            for row_mask in variables_missing_mask :
+            for row_mask in variables_missing_mask:
                 
-                rows_indexes = where( ( X_nan == row_mask ).all( axis = 1 ) )                
+                rows_indexes = where((X_nan == row_mask).all(axis = 1))                
                 
-                if sum( row_mask ) == 0 : 
+                if sum(row_mask) == 0: 
 
-                    result[ rows_indexes, : ] = X[ rows_indexes, :] @ self.x_weights_star[ :latent_variables, : ].T 
+                    result[rows_indexes, :] = X[rows_indexes, :] @ self.x_weights_star[:latent_variables, :].T 
                 
-                else :
+                else:
                     
-                    result[ rows_indexes, : ] = scores_with_missing_values( self.omega, self.x_weights_star[ : , ~row_mask ], X[ rows_indexes[ 0 ][ :, None ], ~row_mask], 
-                                                                            LVs = latent_variables, method = self.missing_values_method )
+                    result[rows_indexes, :] = scores_with_missing_values(self.omega, self.x_weights_star[:, ~row_mask], X[rows_indexes[0][:, None], ~row_mask], 
+                                                                            LVs = latent_variables, method = self.missing_values_method)
                     
-        else : result = X_values @ self.x_weights_star[ :latent_variables, : ].T
+        else : result = X_values @ self.x_weights_star[:latent_variables, :].T
 
         # TO DO : check if X makes sense with latent variables
         return result
@@ -307,7 +334,7 @@ class SMB_PLS:
         else:
             latent_variables = sum(latent_variables)
 
-        result = scores @ self.x_weights_star[ :latent_variables, : ] 
+        result = scores @ self.x_weights_star[:latent_variables, :] 
         
         return result
     
@@ -339,7 +366,7 @@ class SMB_PLS:
         else:
             latent_variables = sum(latent_variables)
 
-        preds = self.transform(X, latent_variables = latent_variables ) @ self.c_loadings[ :latent_variables, : ]
+        preds = self.transform(X, latent_variables = latent_variables) @ self.c_loadings[ :latent_variables, :]
         
         return preds
 
@@ -379,7 +406,7 @@ class SMB_PLS:
 
         Y_hat = self.predict(X, latent_variables = latent_variables)
         F = Y_values - Y_hat
-        score = 1 - nanvar( F ) / nanvar( Y_values )
+        score = 1 - nanvar(F) / nanvar(Y_values)
 
         return score
     
@@ -401,16 +428,37 @@ class SMB_PLS:
             returns all calculated T²s for the X samples
         """
         
-        if isinstance( X, DataFrame ) : X = X.to_numpy()     #dataframe, return it
+        if isinstance(X, DataFrame) : X = X.to_numpy()     #dataframe, return it
    
         if latent_variables == None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
         
-        scores_matrix = self.transform( X, latent_variables = latent_variables )
+        scores_matrix = self.transform( X, latent_variables = latent_variables)
         
         T2s = array(sum(((scores_matrix / std(scores_matrix)) ** 2), axis = 1), ndmin = 2).T
         
         return T2s
     
+    def Hotellings_T2_block(self, X, block, latent_variables = None):
+
+        """
+        Calculates the Hotelling's T² for the X samples on the superlevel.
+
+        Parameters
+        ----------
+        X : array_like
+            Samples Matrix
+        latent_variables : [int], optional
+            number of latent variables to be used. 
+
+        Returns
+        -------
+        T2s : array_like 
+            returns all calculated T²s for the X samples
+        """
+
+
+        return T2s_block
+        
     def SPEs_X(self, X, latent_variables = None): 
         
         """
@@ -435,7 +483,7 @@ class SMB_PLS:
         
         
         error = X - self.transform_inv(self.transform(X, latent_variables = latent_variables), latent_variables = latent_variables)   
-        SPE = nansum( error ** 2, axis = 1 )
+        SPE = nansum(error ** 2, axis = 1)
         
         return SPE
 
@@ -465,7 +513,7 @@ class SMB_PLS:
         
         
         error = Y - self.predict(X, latent_variables = latent_variables)
-        SPE = nansum( error ** 2, axis = 1 )
+        SPE = nansum(error ** 2, axis = 1)
         
         return SPE
  
@@ -491,14 +539,14 @@ class SMB_PLS:
         if isinstance(X, DataFrame) : X = X.to_numpy()
 
         scores = self.transform(X, latent_variables = latent_variables)
-        scores = (scores / std(scores, axis = 0) ** 2)
+        scores = (scores / std(scores, axis = 0)) ** 2
 
         if latent_variables == None : 
             latent_variables = sum(self.latent_variables)
         else:
             latent_variables = sum(latent_variables)
 
-        contributions = X * ( scores @ (self.x_weights_star[ :latent_variables, : ] ** 2 ) ** 1 / 2 )
+        contributions = X * (scores @ (self.x_weights_star[:latent_variables, :] ** 2) ** (1 / 2))
 
         return contributions
     
@@ -535,7 +583,7 @@ class SMB_PLS:
         conv = 1
         loops = 0
 
-        y_scores1 = nan_to_num( array( Y[ :,0 ], ndmin = 2 ).T ) #handling possible NaNs that come from faulty datasets - Step 1
+        y_scores1 = nan_to_num(array(Y[ :,0 ], ndmin = 2).T) #handling possible NaNs that come from faulty datasets - Step 1
         superlevel_scores1 = nan_to_num(y_scores1) #initializing superlevel scores vector
 
         while (conv > self.tol and loops < self.loop_limit) :
@@ -560,7 +608,7 @@ class SMB_PLS:
             # calculating the y side loadings and scores
             c_loadings, y_scores = self._y_part(superlevel_scores, Y, missing_values[-1])
 
-            conv = norm( superlevel_scores1 - superlevel_scores ) / norm( superlevel_scores1 )
+            conv = norm(superlevel_scores1 - superlevel_scores) / norm(superlevel_scores1)
             superlevel_scores1 = superlevel_scores
             y_scores1 = y_scores
 
@@ -568,7 +616,9 @@ class SMB_PLS:
         start, end = block_coord_pairs[0][0], block_coord_pairs[-1][-1]
         superlevel_p_loadings = self._p_loadings(X[:, start:end], superlevel_scores, True in missing_values[:-1]).T
         x_weights = self._p_loadings(X[:, start:end], y_scores, True in missing_values).T
+        
         x_weights = x_weights / norm(x_weights)
+        y_scores_test = X[:, start:end] @ x_weights
 
         for missing, scores, (start, end) in zip(missing_values, T_scores.T, block_coord_pairs) :
             
@@ -632,20 +682,20 @@ class SMB_PLS:
     
     def _superlevel_part(self, T_scores, y_scores):
         
-        superlevel_weights = T_scores.T @ y_scores / ( y_scores.T @ y_scores )  #step 2.9
-        superlevel_weights = superlevel_weights / norm( superlevel_weights ) #step 2.10
-        superlevel_scores = T_scores @ superlevel_weights / ( superlevel_weights.T @ superlevel_weights ) #step 2.11
+        superlevel_weights = T_scores.T @ y_scores / (y_scores.T @ y_scores)  #step 2.9
+        superlevel_weights = superlevel_weights / norm(superlevel_weights) #step 2.10
+        superlevel_scores = T_scores @ superlevel_weights / (superlevel_weights.T @ superlevel_weights) #step 2.11
 
         return superlevel_weights, superlevel_scores
 
     def _y_part(self, superlevel_scores, Y, missing_value_Y):
 
         if missing_value_Y :
-            c_loadings = nansum( ( Y.T * superlevel_scores ).T, axis = 0 ) 
-            c_loadings = c_loadings / nansum( ( ( isnan( Y ).T * superlevel_scores ) ** 2 ).T, axis = 0 )
-        else : c_loadings = Y.T @ superlevel_scores / (superlevel_scores.T @ superlevel_scores ) # step 2.12
+            c_loadings = nansum((Y.T * superlevel_scores).T, axis = 0) 
+            c_loadings = c_loadings / nansum(((isnan(Y).T * superlevel_scores) ** 2).T, axis = 0)
+        else : c_loadings = Y.T @ superlevel_scores / (superlevel_scores.T @ superlevel_scores) # step 2.12
         
-        y_scores = Y @ c_loadings / ( c_loadings.T @ c_loadings ) # step 2.13
+        y_scores = Y @ c_loadings / (c_loadings.T @ c_loadings) # step 2.13
 
         return c_loadings, y_scores
 
@@ -680,13 +730,13 @@ class SMB_PLS:
         Calculates the VIP scores for all the variables for the prediction
         """
         
-        SSY = sum( ( Y - nanmean( Y, axis = 0 ) ) ** 2)
-        for i in range( 1, self.x_weights_star.shape[ 1 ] + 1 ):
-            pred = self.predict( X, latent_variables = i )
+        SSY = sum((Y - nanmean(Y, axis = 0)) ** 2)
+        for i in range(1, self.x_weights_star.shape[1] + 1):
+            pred = self.predict(X, latent_variables = i)
             res = Y - pred
-            SSY.loc[ i ] = sum(( ( res - res.mean( axis = 0 ) ) ** 2))
+            SSY.loc[i] = sum(((res - res.mean(axis = 0)) ** 2))
             
-        SSYdiff = SSY.iloc[ :-1 ]-SSY.iloc[ 1: ]
-        VIPs = ( ( ( self.x_weights ** 2) @ SSYdiff.values ) * self.weights.shape[1] / ( SSY[0] - SSY[-1] ) ** 1 / 2 )
+        SSYdiff = SSY.iloc[:-1] - SSY.iloc[1:]
+        VIPs = (((self.x_weights ** 2) @ SSYdiff.values) * self.weights.shape[1] / (SSY[0] - SSY[-1]) ** 1 / 2)
        
         return VIPs
