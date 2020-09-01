@@ -350,7 +350,7 @@ class PLS:
         """
                   
         if latent_variables is None: latent_variables = self.latent_variables
-        result = scores @ self.weights_star[:latent_variables, :] 
+        result = scores @ self.p_loadings[:latent_variables, :] 
         
         return result
     
@@ -486,7 +486,7 @@ class PLS:
 
         if isinstance(X, DataFrame): X = X.to_numpy()       
         
-        error = X - self.transform_inv(self.transform(X))  
+        error = X - self.transform_inv(self.transform(X, latent_variables = latent_variables), latent_variables = latent_variables)  
         SPE = nansum(error ** 2, axis = 1)
         
         return SPE
