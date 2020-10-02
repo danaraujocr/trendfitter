@@ -140,17 +140,10 @@ class MB_PCA:
 
         """
         if isinstance(X, DataFrame):# If X data is a pandas Dataframe
-            indexes = X.index.copy()
-            X_columns = X.columns.copy()
             X = array(X.to_numpy(), ndmin = 2)
 
         self.block_divs = block_divs
         block_coord_pairs = (*zip([0] + block_divs[:-1], block_divs),)
-        missing_values_list = [isnan(sum(X[:, start:end])) for (start, end) in block_coord_pairs] 
-          
-            
-        Orig_X = X
-
         
         #Using a full PLS as basis to calculate the MB-PLS
         int_PCA = PCA(tol = self.tol, loop_limit = self.loop_limit, missing_values_method = self.missing_values_method)
