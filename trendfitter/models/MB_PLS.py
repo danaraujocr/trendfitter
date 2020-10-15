@@ -1,6 +1,6 @@
 from numpy import array, isnan, nansum, nan_to_num, multiply, sum, sqrt, \
                   append, zeros, place, nan, concatenate, mean, nanvar,  \
-                  std, unique, where, nanmean
+                  std, unique, where, nanmean, diagonal
 from numpy.linalg import norm, pinv
 from sklearn.model_selection import KFold
 from pandas import DataFrame, Series
@@ -80,7 +80,7 @@ class MB_PLS:
                 the super level
 
     """
-    def __init__(self, cv_splits_number = 7, tol = 1e-16, loop_limit = 1000, missing_values_method = 'TSM'):
+    def __init__(self, cv_splits_number = 7, tol = 1e-8, loop_limit = 1000, missing_values_method = 'TSM'):
         
         # Parameters
         
@@ -105,6 +105,8 @@ class MB_PLS:
         self.coefficients = None
         self.omega = None # score covariance matrix for missing value estimation
         self._int_PLS = None
+        self.training_scores = None
+        self.training_sl_scores = None
 
     def fit(self, X, block_divs, Y, latent_variables = None, deflation = 'both', int_call = False):
         """
@@ -138,18 +140,13 @@ class MB_PLS:
 
         """
         if isinstance(X, DataFrame):# If X data is a pandas Dataframe
-            indexes = X.index.copy()
-            X_columns = X.columns.copy()
             X = array(X.to_numpy(), ndmin = 2)
 
-        missing_values_list = [isnan(sum(X[:, start:end])) for (start, end) in block_coord_pairs] 
+        self.block_divs = block_divs
+        block_coord_pairs = (*zip([0] + block_divs[:-1], block_divs),)
           
         if isinstance( Y, DataFrame ) or isinstance( Y, Series ): # If Y data is a pandas Dataframe or Series 
-            if isinstance( Y, DataFrame ) : Y_columns = Y.columns
             Y = array( Y.to_numpy(), ndmin = 2 ).T
-            
-        Orig_X = X
-        Orig_Y = Y
         
         #Using a full PLS as basis to calculate the MB-PLS
         int_PLS = PLS(cv_splits_number = self.cv_splits_number, tol = self.tol, loop_limit = self.loop_limit, missing_values_method = self.missing_values_method)
@@ -160,46 +157,67 @@ class MB_PLS:
         block_coord_pairs = (*zip([0] + block_divs[:-1], block_divs),)
 
         superlevel_T = zeros((X.shape[0], len(block_coord_pairs) * int_PLS.latent_variables))
+        superlevel_weights = zeros((int_PLS.latent_variables , len(block_coord_pairs) * int_PLS.latent_variables))
         block_weights = zeros((int_PLS.latent_variables * len(block_coord_pairs), X.shape[1]))
+        block_p_loadings = zeros(block_weights.shape)
 
         for block, (start, end) in enumerate(block_coord_pairs):
             test_missing_data = isnan(sum(X[:, start:end]))
             if test_missing_data:
                 b_weights = zeros((int_PLS.latent_variables, end - start))
-                for i in range(int_PCA.latent_variables):
-                    b_weights[i, :] = nansum(X[:, start:end] * array(int_PLS.training_scores[:, i], ndmin = 2).T, axis = 0) / nansum(((~isnan(X[:, start:end]).T * int_PLS.training_scores[:, i]) ** 2), axis = 1)
+                for i in range(int_PLS.latent_variables):
+                    b_weights[i, start:end] = nansum(X[:, start:end] * array(int_PLS.training_scores[:, i], ndmin = 2).T, axis = 0) / nansum(((~isnan(X[:, start:end]).T * int_PLS.training_scores[:, i]) ** 2), axis = 1)
             else:
                 b_weights = array(X[:, start:end].T @ int_PLS.training_scores / diagonal(int_PLS.training_scores.T @ int_PLS.training_scores), ndmin = 2).T
 
             block_weights[(block * int_PLS.latent_variables):((block + 1) * int_PLS.latent_variables), start:end] = b_weights
             
-            block_scores = zeros((X.shape[0], int_PCA.principal_components))
+            block_scores = zeros((X.shape[0], int_PLS.latent_variables))
+            
+            
             if test_missing_data:
-                for i in range(int_PCA.principal_components):
-                    block_scores[:, i] = nansum(X[:, start:end] * block_weights[i, :], axis = 1) / nansum(((~isnan(X[:, start:end]) * block_weights[i, :]) ** 2), axis = 1)
+                for i in range(int_PLS.latent_variables):
+                    block_scores[:, i] = nansum(X[:, start:end] * b_weights[i, :], axis = 1) / nansum(((~isnan(X[:, start:end]) * b_weights[i, :]) ** 2), axis = 1)
+                    b_p_loadings = array(sum(nan_to_num(X) * block_scores[:, i], axis = 0) / sum((~isnan(X) * block_scores[:, i]) ** 2, axis = 0), ndmin = 2)
+                    
             else:
-                block_scores = (X[:, start:end] @ b_loadings.T) 
-
+                block_scores = (X[:, start:end] @ b_weights.T)
+                b_p_loadings = zeros((int_PLS.latent_variables, end-start))
+                for i in range(int_PLS.latent_variables):                  
+                    b_p_loadings[i:i+1, :] = array(X[:, start:end].T @ block_scores[:, i] / (block_scores[:, i].T @ block_scores[:, i]), ndmin = 2)
+            block_p_loadings[(block * int_PLS.latent_variables):((block + 1) * int_PLS.latent_variables), start:end] = b_p_loadings
             superlevel_T[:, [block + num * len(block_coord_pairs) for num, _ in enumerate(block_coord_pairs)]] = block_scores
         
-        superlevel_weights = (superlevel_T.T @ int_PLS.scores) / (int_PLS.scores.T @ int_PLS.scores)
+        for i in range(int_PLS.latent_variables):
+            numerator = (superlevel_T[:, i * len(block_coord_pairs) : (i + 1) * len(block_coord_pairs)].T @ int_PLS.training_scores[:, i])
+            denominator = (int_PLS.training_scores[:, i].T @ int_PLS.training_scores[:, i])
+            superlevel_weights[i , i * len(block_coord_pairs) : (i + 1) * len(block_coord_pairs)] = numerator / denominator #Error here
+        
+        
+        """-------------------------------- p loadings calculation section ----------------------------"""                        
+        
 
         #----------------Attribute Assignment---------------
 
+        
+
         self.latent_variables = int_PLS.latent_variables
         self.block_divs = block_divs
-        self.block_p_loadings = None
+        
 
-
+        self.block_p_loadings = block_p_loadings
         self.block_weights = block_weights
         self.superlevel_weights = superlevel_weights
+        self.training_sl_scores = superlevel_T
+
         self.x_weights_star = int_PLS.weights_star
         self.x_weights = int_PLS.weights
         self.c_loadings = int_PLS.c_loadings
         self.feature_importances_ = int_PLS.feature_importances_
         self.omega = int_PLS.omega
         self._int_PLS = int_PLS
-
+        self.training_scores = self._int_PLS.training_scores
+        
     def transform(self, X, latent_variables = None):
 
         """
@@ -493,7 +511,66 @@ class MB_PLS:
             divs = [0 , self.block_divs[block]]
         else:
             divs = [self.block_divs[block - 1] , self.block_divs[block]]
-        result = X @ self.block_weights[:, divs[0]:divs[1]]
+        result = X @ self.block_weights[(block * latent_variables):(block * latent_variables) + latent_variables, divs[0]:divs[1]].T
         
         return result
+
+    def transform_b_inv(self, scores, block, latent_variables = None): # requires testing & development
+
+        """
         
+        Transform the X sample of a specific block to the block space.
+        Does not handle missing data.
+
+        Parameters 
+        ----------
+        scores : array_like
+            Sample scores to transform back to block domain
+        latent_variables : int, Optional
+            Number of desired latent variables to be used. If
+        none are supplied, all variables will be used.
+
+        Returns
+        -------
+        result : array_like
+            returns X samples
+        """
+
+        if isinstance(scores, DataFrame): scores = scores.to_numpy()      
+        if latent_variables is None: latent_variables = self.latent_variables
+
+        if block == 0:
+            divs = [0 , self.block_divs[block]]
+        else:
+            divs = [self.block_divs[block - 1] , self.block_divs[block]]
+        result = scores @ self.block_weights[(block * latent_variables):(block * latent_variables) + latent_variables, divs[0]:divs[1]]
+        
+        return result
+
+    def score_b(self, X, block, latent_variables = None): #requires testing & development
+
+        """
+        
+        Transform the X sample of a specific block to the block space.
+        Does not handle missing data.
+
+        Parameters 
+        ----------
+        X : array_like
+            Samples to transform
+        latent_variables : int, Optional
+            Number of desired latent variables to be used. If
+        none are supplied, all variables will be used.
+
+        Returns
+        -------
+        result : array_like
+            returns X samples' block level scores
+
+        """
+
+        error = X - self.transform_b_inv(self.transform_b(X, block, latent_variables = latent_variables), block, latent_variables = latent_variables)
+        
+        result = 1 - nanvar(error) / nanvar(X)
+
+        return result
