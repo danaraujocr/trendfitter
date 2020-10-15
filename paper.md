@@ -30,11 +30,9 @@ This first version contains:
 - Partial Least Squares or Projection to Latent Structures (PLS)
 - Multiblock PLS (MB-PLS)
 - Sequential MBPLS (SMB-PLS)
-- Sequential Orthogonal PLS (SO-PLS)
-- Dynamic PCA (DyPCA)
-- Dynamic PLS (DyPLS)
 
-The models have functions for calculation of scores, loadings, weights, contributions, Hotelling's T², and Squared Prediction Errors for both models with single blocks and multiblocks with multiple levels. Functions to evaluate the confidence intervals are also available together with multiple functions to deal with missing data where available (PCA, MB-PCA, PLS, MB-PLS), a frequent problem in industrial process data.
+
+The models have functions for calculation of scores, loadings, weights, contributions, Hotelling's T², and Squared Prediction Errors for both models with single blocks and multiblocks. Functions to evaluate the confidence intervals are also available together with multiple functions to deal with missing data where available (PCA, MB-PCA, PLS, MB-PLS), a frequent problem in industrial process data.
 
 
 
