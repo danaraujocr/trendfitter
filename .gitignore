@@ -2,3 +2,11 @@
 *.pmvx
 *.pyc
 *.json
+
+
+# Unittesting and coverage checks
+htmlcov/*
+.coverage
+build/*
+.eggs/*
+dist/*
