@@ -161,8 +161,8 @@ class SMB_PLS:
             if isinstance(Y, DataFrame) : Y_columns = Y.columns
             Y = array(Y.to_numpy(), ndmin = 2).T
             
-        Orig_X = X
-        Orig_Y = Y
+        Orig_X, X = X.copy(), X.copy()
+        Orig_Y, Y = Y.copy(), Y.copy() 
 
         missing_values_list = missing_values_list + [isnan(sum(Y))] # This is a check for missing data it'll allow for dealing with it in the next steps
         
