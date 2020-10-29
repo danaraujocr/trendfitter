@@ -2,3 +2,6 @@
 *.pmvx
 *.pyc
 *.json
+dist
+build
+trendfitter.egg-info
