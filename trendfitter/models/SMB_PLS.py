@@ -181,12 +181,12 @@ class SMB_PLS:
 
             for LV in range(LVs):
 
-                if self.latent_variables != None and  LV > 2 * self.latent_variables[block]: break
+                if not self.latent_variables is None and  LV > 2 * self.latent_variables[block]: break
 
                 result = self._SMBPLS_1LV(X, block_coord_pairs[block:], Y, missing_values_list, block)
 
                 #--------------------------cross-validation------------------------------
-                if (block != 0 or LV != 0) and self.latent_variables == None and not int_call:
+                if (block != 0 or LV != 0) and self.latent_variables is None and not int_call:
 
                     LV_valid[block] = LV + 1
                     q2_final.append(self._cross_validate(Orig_X, block_divs, Orig_Y, LV_valid, random_state))
@@ -200,7 +200,7 @@ class SMB_PLS:
                         LV_valid[block] -= 1
                         if block == len(max_LVs) - 1 : self.latent_variables = LV_valid 
                         if self.missing_values_method == 'TSM': break  #In case of TSM use there is no need of more components for missing value estimation
-                elif not int_call :
+                elif not int_call and not latent_variables is None:
                     LV_valid[block] = LV + 1
                     q2_final.append(self._cross_validate(Orig_X, block_divs, Orig_Y, LV_valid, random_state))
 
@@ -282,7 +282,7 @@ class SMB_PLS:
         else:
             X_values = X    
 
-        if latent_variables == None : 
+        if latent_variables is None : 
             latent_variables = sum(self.latent_variables)
         else:
             latent_variables = sum(latent_variables)
@@ -329,7 +329,7 @@ class SMB_PLS:
             matrix of rebuilt X from scores
         """
                   
-        if latent_variables == None : 
+        if latent_variables is None : 
             latent_variables = sum(self.latent_variables)
         else:
             latent_variables = sum(latent_variables)
@@ -361,7 +361,7 @@ class SMB_PLS:
         """
 
         if isinstance( X, DataFrame ) : X = X.to_numpy()        
-        if latent_variables == None : 
+        if latent_variables is None : 
             latent_variables = sum(self.latent_variables)
         else:
             latent_variables = sum(latent_variables)
@@ -370,11 +370,6 @@ class SMB_PLS:
         
         return preds
 
-        if latent_variables == None : latent_variables = self.latent_variables
-     
-        Y_hat = self.transform(X, latent_variables = latent_variables) @ self.c_loadings[:, :sum(latent_variables)].T
-
-        return Y_hat
 
     def score(self, X, Y, latent_variables = None): 
 
@@ -398,7 +393,7 @@ class SMB_PLS:
             returns calculated r².
         """
 
-        if latent_variables == None : latent_variables = self.latent_variables
+        if latent_variables is None : latent_variables = self.latent_variables
         if isinstance(Y, DataFrame) or isinstance(Y, Series): 
             Y_values = array(Y.to_numpy(), ndmin = 2).T
         else: 
@@ -430,7 +425,7 @@ class SMB_PLS:
         
         if isinstance(X, DataFrame) : X = X.to_numpy()     #dataframe, return it
    
-        if latent_variables == None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
+        if latent_variables is None : latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
         
         scores_matrix = self.transform( X, latent_variables = latent_variables)
         
@@ -477,7 +472,7 @@ class SMB_PLS:
             returns all calculated SPEs for the X samples
         """
         
-        if latent_variables == None : latent_variables = self.latent_variables
+        if latent_variables is None : latent_variables = self.latent_variables
 
         if isinstance(X, DataFrame) : X = X.to_numpy()
         
@@ -507,7 +502,7 @@ class SMB_PLS:
             returns all calculated SPEs for the X samples
         """
         
-        if latent_variables == None : latent_variables = self.latent_variables
+        if latent_variables is None : latent_variables = self.latent_variables
 
         if isinstance(X, DataFrame) : X = X.to_numpy()
         
@@ -535,13 +530,13 @@ class SMB_PLS:
             matrix of scores contributions for every X sample
         """
 
-        if latent_variables == None : latent_variables = self.latent_variables
+        if latent_variables is None : latent_variables = self.latent_variables
         if isinstance(X, DataFrame) : X = X.to_numpy()
 
         scores = self.transform(X, latent_variables = latent_variables)
         scores = (scores / std(scores, axis = 0)) ** 2
 
-        if latent_variables == None : 
+        if latent_variables is None : 
             latent_variables = sum(self.latent_variables)
         else:
             latent_variables = sum(latent_variables)
@@ -569,7 +564,7 @@ class SMB_PLS:
             matrix of SPE contributions for every X sample
         """
 
-        if latent_variables == None : latent_variables = self.latent_variables
+        if latent_variables is None : latent_variables = self.latent_variables
         if isinstance(X, DataFrame) : X = X.to_numpy()
         
         error = X - self.transform_inv(self.transform(X))
