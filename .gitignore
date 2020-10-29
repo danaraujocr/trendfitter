@@ -2,6 +2,17 @@
 *.pmvx
 *.pyc
 *.json
+<<<<<<< HEAD
 dist
 build
 trendfitter.egg-info
+=======
+
+
+# Unittesting and coverage checks
+htmlcov/*
+.coverage
+build/*
+.eggs/*
+dist/*
+>>>>>>> 6570cb5964b2996f1fd073d494bfef71fc4a2d52
