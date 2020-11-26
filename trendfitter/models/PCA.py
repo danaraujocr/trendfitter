@@ -79,6 +79,7 @@ class PCA:
         self.feature_importances_ = None #for scikit learn use with feature selection methods
         self.omega = None # scores covariance matrix for missing values score estimation
         self.training_scores = None
+        self._training_scores_stds = None
         self._chi2_params = []
 
     def fit(self, X, principal_components = None, cv_splits_number = 7, int_call = False):
@@ -197,6 +198,7 @@ class PCA:
         if not int_call: 
             self.feature_importances_ = self._VIPs_calc(X,  principal_components = self.principal_components)
             self.omega = self.training_scores.T @ self.training_scores # calculation of the covariance matrix
+            self._training_scores_stds = std(self.training_scores, axis = 0)
         pass
         
     def predict(self, X, principal_components = None):
@@ -323,7 +325,7 @@ class PCA:
         
         scores_matrix = self.transform(X, principal_components = principal_components)
         
-        T2s = sum(scores_matrix / std(scores_matrix, axis = 0) ** 2, axis = 1)
+        T2s = sum((scores_matrix / self._training_scores_stds[:principal_components]) ** 2 , axis = 1)
         return T2s
     
     def T2_limit(self, alpha, principal_components = None):
