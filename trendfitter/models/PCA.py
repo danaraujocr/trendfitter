@@ -193,7 +193,7 @@ class PCA:
             MatrixXModel = self.training_scores @ self.loadings 
             error = nan_to_num(X) - MatrixXModel
             SPE = sum(error ** 2 , axis = 1)
-            self._chi2_params.append((2 * mean(SPE) ** 2) / var(SPE)) #for future SPE analysis
+            self._chi2_params.append([mean(SPE), var(SPE)]) #for future SPE analysis
 
         if not int_call: 
             self.feature_importances_ = self._VIPs_calc(X,  principal_components = self.principal_components)
@@ -475,8 +475,8 @@ class PCA:
         """
 
         if principal_components == None: principal_components = self.principal_components # Unless specified, the number of PCs is the one in the trained model 
-        
-        chi2_val = chi2.isf(1 - alpha, principal_components - 1)
-        SPE_limit = self._chi2_params[principal_components - 1] * chi2_val
+        chi2_df = 2 * self._chi2_params[principal_components - 1][0] ** 2 / self._chi2_params[principal_components - 1][1]
+        chi2_val = chi2.isf(1 - alpha, chi2_df)
+        SPE_limit = self._chi2_params[principal_components - 1][1] / (2 * self._chi2_params[principal_components - 1][0])  * chi2_val
         
         return SPE_limit
