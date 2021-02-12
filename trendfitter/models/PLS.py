@@ -400,7 +400,7 @@ class PLS:
             returns calculated r².
         """
 
-        if isinstance(Y, DataFrame) or isinstance(Y, Series): Y = array(Y.to_numpy(), ndmin = 2).T       
+        if isinstance(Y, DataFrame) or isinstance(Y, Series): Y = array(Y.to_numpy(), ndmin = 2).T     
         if latent_variables is None: latent_variables = self.latent_variables 
 
         Y_hat = self.predict(X, latent_variables = latent_variables)
@@ -433,7 +433,7 @@ class PLS:
         
         scores_matrix = self.transform(X, latent_variables = latent_variables)
         
-        T2s = sum(((scores_matrix / std( scores_matrix)) ** 2), axis = 1)
+        T2s = sum(((scores_matrix / std(self.training_scores[:, :latent_variables], axis = 0)) ** 2), axis = 1)
         
         return T2s
     
@@ -629,7 +629,7 @@ class PLS:
         if isinstance(X, DataFrame): X = X.to_numpy()
 
         scores = self.transform(X, latent_variables = latent_variables)
-        scores = (scores / std(scores, axis = 0)) ** 2  
+        scores = (scores / std(self.training_scores[:, :latent_variables], axis = 0)) ** 2  
         contributions = X * ((scores @ (self.weights_star[:latent_variables, :] ** 2)) ** (1 / 2))
 
         return contributions
