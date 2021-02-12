@@ -399,7 +399,7 @@ class PCA:
         
         scores = self.transform(X, principal_components = principal_components)
         scores = (scores / self._training_scores_stds[:principal_components]) ** 2 
-        contributions = multiply(X, (scores @ self.loadings[:principal_components, :] ** 2) ** 1 / 2) 
+        contributions = multiply(X, (scores @ self.loadings[:principal_components, :] ** 2) ** (1 / 2)) 
 
         return contributions
        
