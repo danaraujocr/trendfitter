@@ -541,9 +541,12 @@ class PLS:
 
         if isinstance(X, DataFrame): X = X.to_numpy()
 
-        if isinstance(Y, DataFrame) or isinstance(Y, Series): 
+        if isinstance(Y, DataFrame) : 
             Y = Y.to_numpy()
             Y = array(Y, ndmin = 2)
+        elif isinstance(Y, Series):
+            Y = Y.to_numpy()
+            Y = array(Y, ndmin = 2).T
         
         
         error = Y - self.predict(X, latent_variables = latent_variables)
