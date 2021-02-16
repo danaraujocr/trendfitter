@@ -400,7 +400,8 @@ class PLS:
             returns calculated r².
         """
 
-        if isinstance(Y, DataFrame) or isinstance(Y, Series): Y = array(Y.to_numpy(), ndmin = 2).T     
+        if isinstance(Y, DataFrame) : Y = array(Y.to_numpy(), ndmin = 2)
+        elif isinstance(Y, Series): Y = array(Y.to_numpy(), ndmin = 2).T   
         if latent_variables is None: latent_variables = self.latent_variables 
 
         Y_hat = self.predict(X, latent_variables = latent_variables)
