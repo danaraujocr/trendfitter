@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="trendfitter", # Replace with your own username
-    version="0.0.1",
+    version="0.0.3",
     author="Daniel Rodrigues",
     author_email="dan.araujocr@gmail.com",
     description="Latent Variable Modelling made easy",
@@ -19,5 +19,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-    install_requires = ['numpy', 'pandas', 'sklearn', ] 
+    install_requires = ['numpy', 'pandas', 'sklearn', 'scipy'] 
 )
