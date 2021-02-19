@@ -200,10 +200,13 @@ class SMB_PLS:
                         LV_valid[block] -= 1
                         if block == len(max_LVs) - 1 : self.latent_variables = LV_valid 
                         if self.missing_values_method == 'TSM': break  #In case of TSM use there is no need of more components for missing value estimation
-                elif not int_call and not latent_variables is None:
+                elif int_call and not (latent_variables is None):
                     LV_valid[block] = LV + 1
+                    #q2_final.append(self._cross_validate(Orig_X, block_divs, Orig_Y, LV_valid, random_state))
+                else:
+                    LV_valid[block] = LV + 1    
                     q2_final.append(self._cross_validate(Orig_X, block_divs, Orig_Y, LV_valid, random_state))
-
+                    
                 #------------------------------------deflation----------------------------
 
                 if deflation == 'both' :
@@ -369,7 +372,6 @@ class SMB_PLS:
         preds = self.transform(X, latent_variables = latent_variables) @ self.c_loadings[ :latent_variables, :]
         
         return preds
-
 
     def score(self, X, Y, latent_variables = None): 
 
