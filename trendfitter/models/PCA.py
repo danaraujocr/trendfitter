@@ -451,7 +451,7 @@ class PCA:
         if principal_components == None : principal_components = self.principal_components
         if isinstance(X, DataFrame): X = X.to_numpy()
 
-        error = nan_to_num(X) - self.predict(X)
+        error = nan_to_num(X) - self.predict(X, principal_components = principal_components)
         SPE = sum(error ** 2 , axis = 1)
         
         return SPE
