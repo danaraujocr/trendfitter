@@ -166,7 +166,7 @@ class MB_PLS:
             if test_missing_data:
                 b_weights = zeros((int_PLS.latent_variables, end - start))
                 for i in range(int_PLS.latent_variables):
-                    b_weights[i, start:end] = nansum(X[:, start:end] * array(int_PLS.training_scores[:, i], ndmin = 2).T, axis = 0) / nansum(((~isnan(X[:, start:end]).T * int_PLS.training_scores[:, i]) ** 2), axis = 1)
+                    b_weights[i, :] = nansum(X[:, start:end] * array(int_PLS.training_scores[:, i], ndmin = 2).T, axis = 0) / nansum(((~isnan(X[:, start:end]).T * int_PLS.training_scores[:, i]) ** 2), axis = 1)
             else:
                 b_weights = array(X[:, start:end].T @ int_PLS.training_scores / diagonal(int_PLS.training_scores.T @ int_PLS.training_scores), ndmin = 2).T
 
@@ -174,19 +174,19 @@ class MB_PLS:
             
             block_scores = zeros((X.shape[0], int_PLS.latent_variables))
             
-            
+            b_p_loadings = zeros((int_PLS.latent_variables, end-start))
             if test_missing_data:
                 for i in range(int_PLS.latent_variables):
                     block_scores[:, i] = nansum(X[:, start:end] * b_weights[i, :], axis = 1) / nansum(((~isnan(X[:, start:end]) * b_weights[i, :]) ** 2), axis = 1)
-                    b_p_loadings = array(sum(nan_to_num(X) * block_scores[:, i], axis = 0) / sum((~isnan(X) * block_scores[:, i]) ** 2, axis = 0), ndmin = 2)
+                    b_p_loadings[i, :] = array(sum(nan_to_num(X[:, start:end]) * array(block_scores[:, i], ndmin = 2).T, axis = 0) / sum((~isnan(X[:, start:end]) * array(block_scores[:, i], ndmin = 2).T) ** 2, axis = 0), ndmin = 2)
                     
             else:
                 block_scores = (X[:, start:end] @ b_weights.T)
-                b_p_loadings = zeros((int_PLS.latent_variables, end-start))
+                
                 for i in range(int_PLS.latent_variables):                  
-                    b_p_loadings[i:i+1, :] = array(X[:, start:end].T @ block_scores[:, i] / (block_scores[:, i].T @ block_scores[:, i]), ndmin = 2)
+                    b_p_loadings[i, :] = array(X[:, start:end].T @ block_scores[:, i] / (block_scores[:, i].T @ block_scores[:, i]), ndmin = 2)
             block_p_loadings[(block * int_PLS.latent_variables):((block + 1) * int_PLS.latent_variables), start:end] = b_p_loadings
-            superlevel_T[:, [block + num * len(block_coord_pairs) for num, _ in enumerate(block_coord_pairs)]] = block_scores
+            superlevel_T[:, [block + num * len(block_coord_pairs) for num in range(int_PLS.latent_variables)]] = block_scores
         
         for i in range(int_PLS.latent_variables):
             numerator = (superlevel_T[:, i * len(block_coord_pairs) : (i + 1) * len(block_coord_pairs)].T @ int_PLS.training_scores[:, i])
@@ -461,7 +461,7 @@ class MB_PLS:
             matrix of scores contributions for every X sample
         """
         
-        return self.int_PLS.contributions_scores_ind(X, latent_variables = latent_variables)
+        return self._int_PLS.contributions_scores_ind(X, latent_variables = latent_variables)
 
     def contributions_SPE_X(self, X, latent_variables = None):
         """
@@ -480,7 +480,7 @@ class MB_PLS:
         SPE_contributions : array_like 
             matrix of SPE contributions for every X sample
         """
-        return self.int_PLS.contributions_SPE_X(X, latent_variables = latent_variables)
+        return self._int_PLS.contributions_SPE_X(X, latent_variables = latent_variables)
 
     def transform_b(self, X, block, latent_variables = None): # requires testing & development
 
