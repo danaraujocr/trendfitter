@@ -305,7 +305,9 @@ class PLS:
 
         """
         
-        if isinstance(X, DataFrame): X = X.to_numpy()      
+        if isinstance(X, DataFrame): X = X.to_numpy()
+        elif isinstance(X, Series): X = array(X.to_numpy(), ndmin = 2)
+          
         if latent_variables is None: latent_variables = self.latent_variables
         
         if isnan(sum(X)):
@@ -372,7 +374,9 @@ class PLS:
             returns predictions
         """
 
-        if isinstance(X, DataFrame): X = X.to_numpy()        
+        if isinstance(X, DataFrame): X = X.to_numpy()
+        elif isinstance(X, Series): X = array(X.to_numpy(), ndmin = 2)
+
         if latent_variables is None: latent_variables = self.latent_variables        
         preds = self.transform(X, latent_variables = latent_variables) @ self.c_loadings[:latent_variables, :] 
         
@@ -428,8 +432,9 @@ class PLS:
             returns all calculated T²s for the X samples
         """
         
-        if isinstance(X, DataFrame): X = X.to_numpy()     #dataframe, return it
-   
+        if isinstance(X, DataFrame): X = X.to_numpy()     
+        elif isinstance(X, Series): X = array(X.to_numpy(), ndmin = 2)
+
         if latent_variables is None: latent_variables = self.latent_variables # Unless specified, the number of PCs is the one in the trained model 
         
         scores_matrix = self.transform(X, latent_variables = latent_variables)
@@ -486,7 +491,8 @@ class PLS:
         if latent_variables is None: latent_variables = self.latent_variables
 
         if isinstance(X, DataFrame): X = X.to_numpy()       
-        
+        elif isinstance(X, Series): X = array(X.to_numpy(), ndmin = 2)
+
         error = X - self.transform_inv(self.transform(X, latent_variables = latent_variables), latent_variables = latent_variables)  
         SPE = nansum(error ** 2, axis = 1)
         
@@ -541,6 +547,7 @@ class PLS:
         if latent_variables is None: latent_variables = self.latent_variables
 
         if isinstance(X, DataFrame): X = X.to_numpy()
+        elif isinstance(X, Series): X = array(X.to_numpy(), ndmin = 2)
 
         if isinstance(Y, DataFrame) : 
             Y = Y.to_numpy()
@@ -631,6 +638,7 @@ class PLS:
 
         if latent_variables is None: latent_variables = self.latent_variables
         if isinstance(X, DataFrame): X = X.to_numpy()
+        elif isinstance(X, Series): X = array(X.to_numpy(), ndmin = 2)
 
         scores = self.transform(X, latent_variables = latent_variables)
         scores = (scores / std(self.training_scores[:, :latent_variables], axis = 0)) ** 2  
@@ -659,6 +667,7 @@ class PLS:
 
         if latent_variables is None: latent_variables = self.latent_variables
         if isinstance(X, DataFrame): X = X.to_numpy()
+        elif isinstance(X, Series): X = array(X.to_numpy(), ndmin = 2)
         
         error = X - self.transform_inv(self.transform(X))
         

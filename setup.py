@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="trendfitter", # Replace with your own username
-    version="0.0.3",
+    version="0.0.5",
     author="Daniel Rodrigues",
     author_email="dan.araujocr@gmail.com",
     description="Latent Variable Modelling made easy",
