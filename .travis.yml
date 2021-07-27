@@ -2,7 +2,8 @@ language: python
 python:
   - "3.7.4"
 cache: pip
-before_install: - pip install -U --only-binary=numpy,scipy numpy scipy
-install: pip install -r requirements.txt
+install: 
+pip install numpy --upgrade
+pip install -r requirements.txt
 script:
   - python -m pytest
