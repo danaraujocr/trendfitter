@@ -1,9 +1,8 @@
 language: python
 python:
-  - "3.7.4"
+  - "3.8"
 cache: pip
 install: 
-pip install numpy --upgrade
 pip install -r requirements.txt
 script:
   - python -m pytest
