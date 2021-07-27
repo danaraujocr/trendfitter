@@ -79,7 +79,7 @@ class TestPLS(object):
                                 [-1.20792265e-12,  2.67886350e+03, -1.35003120e-13],
                                 [ 1.70530257e-13, -1.35003120e-13,  4.90047180e+03]])
 
-        assert test_model.omega[:3,:3] == pytest.approx(expected_omega), 'Omega matrix is not as expected'
+        assert test_model.omega[:3,:3] == pytest.approx(expected_omega, abs = 1e-10, rel= 1e-6), 'Omega matrix is not as expected'
 
         expected_q2 = array([0.28124385593261386, 0.44299735550099845, 0.46414076569509394, 0.4777738478674691])
         assert test_model.q2y == pytest.approx(expected_q2), 'Q2 results are not the expected'
