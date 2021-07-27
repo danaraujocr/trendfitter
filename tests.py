@@ -29,7 +29,7 @@ print(pca_model.predict(pca_data.iloc[:5]))
 print('scores')
 print(pca_model.transform(pca_data.iloc[:5]))
 print('r2')
-print(pca_model.score(pca_data.iloc[:5]))
+print(pca_model.score(pca_data))
 print('Hot T2')
 print(pca_model.Hotellings_T2(pca_data.iloc[:5]))
 print('T2 Limit')
@@ -37,13 +37,13 @@ print(pca_model.T2_limit(0.95))
 print('SPEs')
 print(pca_model.SPEs(pca_data.iloc[:5]))
 print('SPE limit')
-print(pca_model.SPE_limit(0.95))
+print(pca_model.SPE_limit(0.99))
 print('contributions scores ind')
 print(pca_model.contributions_scores_ind(pca_data.iloc[:5]))
 print('contributions spe')
 print(pca_model.contributions_spe(pca_data.iloc[:5]))
-"""
-"""
+
+
 mbpca_model = MB_PCA()
 mbpca_model.fit(pca_data, [2,5])
 print('block loadings')
@@ -58,9 +58,9 @@ print('predict b')
 print(mbpca_model.predict_b(pca_data.iloc[:,:2], 0)[:5])
 print('score b')
 print(mbpca_model.score_b(pca_data.iloc[:,:2], 0))
+"""
 
-
-
+"""
 #from trendfitter.models.PLS import *
 
 pls_data = pd.read_csv('pls_dataset_complete.csv', delimiter=';', index_col=[0]).drop(columns=['ObsNum']).dropna()
@@ -70,6 +70,9 @@ pls_data = (pls_data - pls_data.mean()) / pls_data.std()
 
 X_pls = pls_data.drop(columns='Y-Kappa')
 Y_pls = pls_data['Y-Kappa']
+
+#X_pls = X_pls.values
+#Y_pls = np.array(pls_data['Y-Kappa'].values, ndmin = 2).T
 
 pls_model = PLS()
 pls_model.fit(X_pls, Y_pls, random_state = 2)
@@ -82,7 +85,7 @@ print(pls_model.score(X_pls, Y_pls))
 print('training scores')
 print(pls_model.training_scores[:5])
 print('predicted scores')
-print(pls_model.transform(X_pls.iloc[:5]))
+print(pls_model.transform(X_pls[:5]))
 
 
 print('P')
@@ -109,21 +112,21 @@ print('q2')
 print(pls_model.q2y)
 
 print('predict')
-print(pls_model.predict(X_pls.iloc[:5]))
+print(pls_model.predict(X_pls[:5]))
 print('transform')
-print(pls_model.transform(X_pls.iloc[:5]))
+print(pls_model.transform(X_pls[:5]))
 print('transform_inv')
-print(pls_model.transform_inv(pls_model.transform(X_pls.iloc[:3])))
+print(pls_model.transform_inv(pls_model.transform(X_pls[:3])))
 print('T2')
-print(pls_model.Hotellings_T2(X_pls.iloc[:5]))
+print(pls_model.Hotellings_T2(X_pls[:5]))
 print('T2_limit')
 print(pls_model.T2_limit(0.95))
 print('SPEs X')
-print(pls_model.SPEs_X(X_pls.iloc[:5]))
+print(pls_model.SPEs_X(X_pls[:5]))
 print('SPEs X_limit')
 print(pls_model.SPE_X_limit(0.95))
 print('SPEs Y')
-print(pls_model.SPEs_Y(X_pls.iloc[:5], Y_pls.iloc[:5]))
+print(pls_model.SPEs_Y(X_pls[:5], Y_pls[:5]))
 print('SPEs Y_limit')
 print(pls_model.SPE_Y_limit(0.95))
 print('RMSEE')
@@ -133,56 +136,59 @@ print(pls_model.contributions_scores_ind(X_pls[:5]))
 print('contributions_SPE_X')
 print(pls_model.contributions_SPE_X(X_pls[:5]))
 """
-"""
 
 
-smbpls_data = pd.read_csv('smb_pls_dataset.csv', delimiter=';', index_col = 0)
-smbpls_data_miss = pd.read_csv('smb_pls_dataset.csv', delimiter=';', index_col = 0).dropna()
+
+smbpls_data = pd.read_csv('smb_pls_dataset.csv', delimiter=';', index_col = 0).dropna()
+smbpls_data_miss = pd.read_csv('smb_pls_dataset.csv', delimiter=';', index_col = 0)
 smbpls_data = (smbpls_data - smbpls_data.mean()) / smbpls_data.std()
 smbpls_data_miss = (smbpls_data_miss - smbpls_data_miss.mean()) / smbpls_data_miss.std()
 X = smbpls_data.drop(columns=['y'])
 X[['Var1', 'Var2', 'Var3', 'rand1', 'rand2', 'rand3']] = X[['Var1', 'Var2', 'Var3', 'rand1', 'rand2', 'rand3']] / sqrt(6)
-#X = X.drop(columns=['rand1', 'rand2', 'rand3', 'rand4', 'rand5'])
-#X[['Var1', 'Var2', 'Var3']] = X[['Var1', 'Var2', 'Var3']] / sqrt(3)
 X[['Var4', 'Var5', 'rand4', 'rand5']] = X[['Var4', 'Var5', 'rand4', 'rand5']] / sqrt(4)
-#X[['Var4', 'Var5']] = X[['Var4', 'Var5']] / sqrt(2)
-#X=[smbpls_data[['Var1','Var2','Var3']]/sqrt(3),smbpls_data[['Var4','Var5']]['Var4','Var5']/sqrt(2)]
 Y = smbpls_data['y']
+
 X_miss = smbpls_data_miss.drop(columns=['y'])
 X_miss[['Var1', 'Var2', 'Var3', 'rand1', 'rand2', 'rand3']] = X_miss[['Var1', 'Var2', 'Var3', 'rand1', 'rand2', 'rand3']] / sqrt(6)
-#X = X.drop(columns=['rand1', 'rand2', 'rand3', 'rand4', 'rand5'])
-#X[['Var1', 'Var2', 'Var3']] = X[['Var1', 'Var2', 'Var3']] / sqrt(3)
 X_miss[['Var4', 'Var5', 'rand4', 'rand5']] = X_miss[['Var4', 'Var5', 'rand4', 'rand5']] / sqrt(4)
-#X[['Var4', 'Var5']] = X[['Var4', 'Var5']] / sqrt(2)
-#X=[smbpls_data[['Var1','Var2','Var3']]/sqrt(3),smbpls_data[['Var4','Var5']]['Var4','Var5']/sqrt(2)]
 Y_miss = smbpls_data_miss['y']
 
 smbpls_model = SMB_PLS(tol = 1e-8, cv_splits_number = 7)
 #smbpls_model.fit(X, [3,5], Y, latent_variables = [2, 1])
-smbpls_model.fit(X, [6,10], Y, random_state = 2)
+smbpls_model.fit(X, [6,10], Y, random_state = 2)#, latent_variables = [1,1])
 
 #smbpls_model.fit(X, [3,5], Y, latent_variables = [2, 1])
-
+"""
 print(f'SMBPLS Model fitted with : {smbpls_model.latent_variables} latent variables')
-#print(smbpls_model.block_p_loadings)
-#print(smbpls_model.superlevel_p_loadings)
-print('weights_star')
+print('block_p_loadings')
+print(smbpls_model.block_p_loadings)
+print('superlevel_p_loadings')
+print(smbpls_model.superlevel_p_loadings)
+print('x_weights_star')
 print(smbpls_model.x_weights_star)
-print('weights')
+print('x_weights')
+print(smbpls_model.x_weights)
+print('superlevel_weights')
+print(smbpls_model.superlevel_weights)
+print('c_loadings')
 print(smbpls_model.c_loadings)
-print(smbpls_model.block_weights.shape)
+print('weights_block')
+print(smbpls_model.block_weights)
 print(f'score is {smbpls_model.score(X, Y) * 100:.4f}%')
 print(smbpls_model.q2y)
 for i in range(sum(smbpls_model.latent_variables)):
     print(smbpls_model.score(X, Y, latent_variables = i+1))
-
+    
+print('Hotellings_T2')
+print(smbpls_model.Hotellings_T2(X.iloc[:5]))
+"""
 
 smbpls_model_miss = SMB_PLS(tol = 1e-8, cv_splits_number = 7)
-smbpls_model_miss.fit(X_miss, [6,10], Y_miss, latent_variables=[1, 0], random_state = 2)
+smbpls_model_miss.fit(X_miss, [6,10], Y_miss, random_state = 2)
 print('miss data section')
 print(f'SMBPLS Model fitted with : {smbpls_model_miss.latent_variables} latent variables')
-print('superlevel training scores')
-print(smbpls_model_miss.training_superlevel_scores[:5])
+print('scores')
+print(smbpls_model_miss.transform(X.iloc[:5]))
 print('scores calculated with x_weights star (pinv expression)')
 new_block_scores = X_miss.values @ smbpls_model_miss.x_weights_star.T
 print(new_block_scores[:5])
@@ -196,9 +202,9 @@ print('superlevel_p_loadings')
 print(smbpls_model_miss.superlevel_p_loadings)
 
 print('x_weights_star')
-print(smbpls_model_miss.x_weights_star[0])
+print(smbpls_model_miss.x_weights_star)
 print('x_weights')
-print(smbpls_model_miss.x_weights[0])
+print(smbpls_model_miss.x_weights)
 
 print('superlevel_weights')
 print(smbpls_model_miss.superlevel_weights)
@@ -216,7 +222,7 @@ print(smbpls_model_miss.predict(X_miss[:5]))
 print(f'score is {smbpls_model_miss.score(X_miss[:5], Y_miss.iloc[:5])*100:.2f}%')
 #print('Hotellings T²')
 #print(smbpls_model_miss.Hotellings_T2(X_miss[:5]))
-"""
+
 """
 mbpls_model = MB_PLS()
 print(X_pls.shape)
@@ -260,7 +266,7 @@ for train_index, test_index in kf.split(X_pls):
     testq2.append(q2_model.score(X_pls.iloc[test_index], Y_pls.iloc[test_index])) # its performance is registered in a list
 q2_final = mean(testq2)
 print(f'PLS q² is {q2_final:.2f}')
-"""
+
 
 from numpy.random import default_rng
 rng = default_rng()
@@ -279,3 +285,4 @@ Y = (Y - np.mean(Y)) / np.std(Y)
 
 model = MLSMB_PLS()
 model.fit(all_Xs,third_level, second_level, Y, latent_variables = [1, 1])
+"""
